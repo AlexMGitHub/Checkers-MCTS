@@ -22,7 +22,7 @@
 import numpy as np
 from copy import deepcopy
 from tabulate import tabulate
-import pygame, time
+import time
 
 
 class Checkers:
@@ -471,6 +471,8 @@ class Checkers_GUI:
         # Reference to game environment
         self.game_env = game_env
         # Initialize Pygame display
+        import pygame
+        self.pygame = pygame
         pygame.init()
         pygame.mixer.quit() # Fixes bug with high PyGame CPU usage
         self.game_width = 600
@@ -516,7 +518,7 @@ class Checkers_GUI:
         done = self.game_env.done
         outcome = self.game_env.outcome
         # Blit green background
-        pygame.draw.rect(self.gameDisplay, self.GREEN, (0,0,
+        self.pygame.draw.rect(self.gameDisplay, self.GREEN, (0,0,
                                                         self.game_width,
                                                         self.game_height)) 
         # Blit game board
@@ -583,7 +585,7 @@ class Checkers_GUI:
             
     def update_screen(self):
         """Update Pygame display after blitting operations."""
-        pygame.display.update()
+        self.pygame.display.update()
 
     def render(self):
         """Renders the new board state every time the step() method is called.
@@ -615,7 +617,7 @@ class Checkers_GUI:
         self.update_screen()
         time.sleep(self.move_delay)        
         # Erase old status text and blit new status text
-        pygame.draw.rect(self.gameDisplay, self.GREEN, (0,
+        self.pygame.draw.rect(self.gameDisplay, self.GREEN, (0,
                         self.board_height+self.board_offset,
                         self.game_width,
                         self.game_height-self.board_height-self.board_offset)) 
@@ -693,9 +695,9 @@ class Checkers_GUI:
         Only needs to be run when a change to the Checkers board design is 
         desired.
         """
-        board = pygame.Surface([self.board_width, self.board_height])
-        wood = pygame.image.load('img/wood5.png').convert()
-        black_sq = pygame.Surface((self.sq_dim, self.sq_dim))
+        board = self.pygame.Surface([self.board_width, self.board_height])
+        wood = self.pygame.image.load('img/wood5.png').convert()
+        black_sq = self.pygame.Surface((self.sq_dim, self.sq_dim))
         black_sq.set_alpha(160)
         black_sq.fill(self.BROWN)
         board.blit(wood,(0,0), (0, 0, self.board_width, self.board_height))        
@@ -703,11 +705,11 @@ class Checkers_GUI:
             for col in range(8):
                 if row % 2 != col % 2:
                     board.blit(black_sq, (self.sq_dim*col, self.sq_dim*row))
-        pygame.image.save(board, 'img/board.png')
+        self.pygame.image.save(board, 'img/board.png')
         
     def close_gui(self):
         """Close Pygame GUI."""
-        pygame.quit()
+        self.pygame.quit()
 
 
 def test_game():

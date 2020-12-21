@@ -10,7 +10,7 @@
 #
 # Purpose:      Contains classes to generate Checkers training data and to 
 #               create a tournament to compare the performance of two 
-#               different neural networks.  
+#               different trained neural networks.  
 #
 # Classes:
 # 1. generate_Checkers_data()   --Generates Checkers training data through 
@@ -22,7 +22,7 @@
 #
 # Notes:
 # 1. Training data saved to /data/training_data as a Pickle file.
-# 2. Tournament written to /data/tournament_results.
+# 2. Tournament results saved to /data/tournament_results.
 # 3. Be sure to set the MCTS kwarg 'TRAINING' to False for competitive play.
 #
 ###############################################################################
@@ -39,10 +39,11 @@ from keras.models import load_model
 
 class generate_Checkers_data():
     """Class to generate Checkers training data through self-play."""
-    def __init__(self, NUM_TRAINING_GAMES, TRAINING_ITERATION, **mcts_kwargs):
+    def __init__(self, NUM_TRAINING_GAMES, TRAINING_ITERATION, TRUNCATE_CNT=100, **mcts_kwargs):
         """Set trainng parameters and initialize MCTS class."""
         self.NUM_TRAINING_GAMES = NUM_TRAINING_GAMES
         self.TRAINING_ITERATION = TRAINING_ITERATION
+        self.TRUNCATE_CNT = TRUNCATE_CNT
         self.game_env = mcts_kwargs['GAME_ENV']
         MCTS(**mcts_kwargs) # Set MCTS parameters
    
@@ -80,21 +81,22 @@ class generate_Checkers_data():
                     game_env.step(best_child2.state)
                     prob_vector = self._create_prob_vector(root_node2)
                     experiences.append([root_node2.state, prob_vector])
-                    if not game_env.done and game_env.move_count >= 100:
-                        game_env.done = True
-                        state = game_env.state
-                        p1_cnt = np.sum(state[0:2])
-                        p2_cnt = np.sum(state[2:4])
-                        if p1_cnt > p2_cnt:
-                            game_env.outcome = 'player1_wins'
-                        elif p1_cnt < p2_cnt:
-                            game_env.outcome = 'player2_wins'
-                        else:
-                            game_env.outcome = 'draw'
+                if not game_env.done and game_env.move_count >= self.TRUNCATE_CNT:
+                    game_env.done = True
+                    state = game_env.state
+                    p1_cnt = np.sum(state[0:2])
+                    p2_cnt = np.sum(state[2:4])
+                    if p1_cnt > p2_cnt:
+                        game_env.outcome = 'player1_wins'
+                    elif p1_cnt < p2_cnt:
+                        game_env.outcome = 'player2_wins'
+                    else:
+                        game_env.outcome = 'draw'
             prob_vector = np.zeros((256,)) # Terminal state
             experiences.append([game_env.state, prob_vector]) # Terminal state
             experiences = self._add_rewards(experiences, game_env.outcome)
             memory.extend(experiences)
+            print('{} after {} moves!'.format(game_env.outcome, game_env.move_count))
             game_env.reset()
         if MCTS.multiproc: 
                 MCTS.pool.close()
@@ -214,6 +216,7 @@ class tournament_Checkers:
             p2_fn_only = p2_fn.replace('data/model/','')
             game_outcomes.append([game_num+1, p1_fn_only, p2_fn_only, 
                                   game_env.outcome, game_env.move_count])
+            print('{} after {} moves!'.format(game_env.outcome, game_env.move_count))
             game_env.reset()
         if MCTS.multiproc: 
                 MCTS.pool.close()
