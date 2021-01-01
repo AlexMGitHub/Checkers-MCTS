@@ -41,7 +41,7 @@ class MCTS:
     def __init__(cls, **kwargs):
         """Initialize MCTS parameters and pass in the game environment."""
         cls.game_env = kwargs['GAME_ENV']
-        cls.uct_c = kwargs['UTC_C'] 
+        cls.uct_c = kwargs['UCT_C'] 
         cls.constraint = kwargs['CONSTRAINT'] # Either 'time' or 'rollout'
         cls.budget = kwargs['BUDGET'] # In seconds or max rollouts
         cls.multiproc = kwargs['MULTIPROC'] # Uses multiprocessing if True
@@ -53,6 +53,7 @@ class MCTS:
         cls.tau = kwargs['TEMPERATURE_TAU']
         cls.tau_decay = kwargs['TEMPERATURE_DECAY']
         cls.tau_decay_delay = kwargs['TEMP_DECAY_DELAY']
+        cls.root_player = ''
         if cls.multiproc and not cls.neural_net: 
             cls.pool = mp.Pool(MAX_PROCESSORS)
         
@@ -69,6 +70,7 @@ class MCTS:
         if node.unvisited_child_states:
             if cls.neural_net:
                 prob_vector, q_value = cls.game_env.predict(node.state)
+                node._confidence = q_value
                 for _ in range(len(node.unvisited_child_states)):
                     next_state = node.unvisited_child_states.pop()
                     child_node = MCTS_Node(next_state, parent=node)
@@ -146,30 +148,44 @@ class MCTS:
             return outcome
         
     @classmethod
-    def determine_reward(cls, player, outcome):
+    def determine_reward(cls, player, outcome, parent_node):
         """Determine the node's reward based on the node's player and the
         outcome of the game.
         
         If the player of the current state is player 1, that means that the 
         current node is a child node (potential move) of player 2.  Therefore 
         the rewards are flipped: a player 1 victory on a player 1 node receives 
-        a zero reward.  A player 2 victory on a player 1 node receives a reward 
-        of one.  This adjusts the UCT value of the node from the opponent's 
-        perspective, and incentivizes the MCTS to choose nodes that favor 
-        player 2 when representing it during the selection phase.  The same is 
-        true for player 2 nodes so that they are chosen from player 1's 
+        a reward of -1.  A player 2 victory on a player 1 node receives a 
+        reward of +1.  This adjusts the UCT value of the node from the 
+        opponent's perspective, and incentivizes the MCTS to choose nodes that 
+        favor player 2 when representing it during the selection phase.  The 
+        same is true for player 2 nodes so that they are chosen from player 1's 
         perspective during the selection process.
+        
+        The exception is if the game allows multiple moves per turn, e.g. a 
+        multi-jump in Checkers.  To handle this case, the parent node's player
+        must be checked against the outcome.
         """
-        if type(outcome) == str:
+        if parent_node is not None:
+            parent_player = parent_node.player
+        else: # Root node
+            try:
+                parent_player = cls.current_player(cls.game_env.history[-2])
+            except:
+                parent_player = 'player1' if player == 'player2' else 'player2'
+        if type(outcome) == str: # Random rollout
             if outcome == 'player1_wins':
-                reward = -1 if player == 'player1' else 1
+                reward = 1 if parent_player == 'player1' else -1
             elif outcome == 'player2_wins':
-                reward = -1 if player == 'player2' else 1
+                reward = 1 if parent_player == 'player2' else -1
             elif outcome == 'draw':
                 reward = 0
             return reward
-        else:
-            return outcome # Outcome is state's estimated Q-value
+        else: # Outcome is state's estimated Q-value from neural network
+            if parent_player != cls.root_player:
+                return -1*outcome # Reverse estimated Q-value
+            else:
+                return outcome
         
     @classmethod
     def computational_budget(cls):
@@ -199,12 +215,14 @@ class MCTS:
         selection method.  The search will continue to expand the tree until
         the computational budget is exhausted.
         """
+        cls.root_player = root_node.player
         cls.start_time = datetime.now()
         cls.rollout_count = 0
         if cls.verbose: print('Starting search!')
         while cls.computational_budget():
             root_node.selection()
-        if cls.verbose: print('Stopped  search after {} rollouts and {} duration!'
+        if cls.verbose: 
+            print('Stopped  search after {} rollouts and {} duration!'
               .format(cls.rollout_count, 
                       str(datetime.now()-cls.start_time)[2:-4]))
                 
@@ -274,9 +292,9 @@ class MCTS:
         else: # This possible move didn't get visited during search
             new_root = MCTS_Node(new_state)
             new_root.history = deepcopy(cls.game_env.history)
-            # raise ValueError('All child nodes should be visited!  Consider '
-            #                  'increasing number of rollouts or comment out this'
-            #                  'error.')
+            raise ValueError('All child nodes should be visited!  Consider '
+                              'increasing number of rollouts or comment out this'
+                              'error.')
             return new_root
     
     @classmethod
@@ -354,6 +372,7 @@ class MCTS_Node:
         self._number_of_visits = 0
         self._total_reward = 0
         self._prior_prob = 0
+        self._confidence = 0
         self.unvisited_child_states = MCTS.get_legal_next_states(self.history)
         self.terminal = False if self.unvisited_child_states else True
         self.printed = False # Used by MCTS.print_tree()
@@ -381,6 +400,11 @@ class MCTS_Node:
         """Property decorator used to return prior probability of node."""
         return self._prior_prob
     
+    @property
+    def pwin(self):
+        """Property decorator used to return NN's confidence of winning."""
+        return np.round((self._confidence+1)/2*100,1)
+    
     def selection(self):
         """The selection phase of MCTS.  Choose an action based on the MCTS
         tree policy.
@@ -398,12 +422,9 @@ class MCTS_Node:
         """Simulation result is backpropagated through the selected nodes
         to the root node, and their statistics are updated.
         """
-        reward = MCTS.determine_reward(self.player, outcome)
+        reward = MCTS.determine_reward(self.player, outcome, self.parent)
         self._number_of_visits += 1
-        try:
-            self._total_reward += reward
-        except:
-            pass
+        self._total_reward += reward
         if self.parent:
             self.parent.backpropagation(outcome)
         else:

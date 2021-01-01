@@ -81,7 +81,7 @@ def states_to_piece_positions(next_states):
 
 # %% Initialize game environment and MCTS class
 # Set MCTS parameters
-UTC_C = 1/(2**0.5) # Constant C used to calculate UCT value
+UCT_C = 1/(2**0.5) # Constant C used to calculate UCT value
 CONSTRAINT = 'rollout' # Constraint can be 'rollout' or 'time'
 BUDGET = 200 # Maximum number of rollouts or time in seconds
 MULTIPROC = False # Enable multiprocessing
@@ -92,11 +92,11 @@ DIRICHLET_ALPHA = 3.6 # Used to add noise to prior probabilities of actions
 DIRICHLET_EPSILON = 0.25 # Used to add noise to prior probabilities of actions
 TEMPERATURE_TAU = 1.0 # Initial value of temperature Tau
 TEMPERATURE_DECAY = 0.1 # Linear decay of Tau per move
-TEMP_DECAY_DELAY = 4 # Move count before beginning decay of Tau value
+TEMP_DECAY_DELAY = 10 # Move count before beginning decay of Tau value
 # Initialize game environment
 GUI = True # Enable Pygame GUI
 if NEURAL_NET:
-    nn = load_model('data/model/Checkers_Model1_29-Nov-2020(22:46:05).h5')
+    nn = load_model('data/model/Checkers_Model1_26-Dec-2020(14:44:12).h5')
     game_env = Checkers(nn)
 else:
     game_env = Checkers(neural_net=None)
@@ -106,7 +106,7 @@ if GUI: checker_gui = Checkers_GUI(game_env)
 
 mcts_kwargs = {
     'GAME_ENV' : game_env,
-    'UTC_C' : UTC_C,
+    'UCT_C' : UCT_C,
     'CONSTRAINT' : CONSTRAINT,
     'BUDGET' : BUDGET,
     'MULTIPROC' : MULTIPROC,
@@ -122,7 +122,7 @@ mcts_kwargs = {
 MCTS(**mcts_kwargs)
 
 # Choose whether to play against the MCTS or to pit them against each other
-human_player1 = True # Set true to play against the MCTS algorithm as player 1
+human_player1 = False # Set true to play against the MCTS algorithm as player 1
 human_player2 = False # Or choose player 2
 if human_player1 and human_player2: human_player2 = False
 human_player_idx = 0 if human_player1 else 1
@@ -145,6 +145,8 @@ while not game_env.done:
             best_child1 = MCTS.best_child(root_node1)
             game_env.step(best_child1.state)
             if print_trees: MCTS.print_tree(root_node1,tree_depth)
+            game_env.print_board()
+            if GUI: checker_gui.render(root_node1, best_child1)      
     else:
         if human_player2: 
             human_move = get_human_input()
@@ -158,9 +160,9 @@ while not game_env.done:
             best_child2 = MCTS.best_child(root_node2)
             game_env.step(best_child2.state)
             if print_trees: MCTS.print_tree(root_node2,tree_depth)
-    game_env.print_board()
-    if GUI: checker_gui.render()      
-
+            game_env.print_board()
+            if GUI: checker_gui.render(root_node2, best_child2)      
+        
 # Housekeeping after game over
 if GUI: 
     input('Press enter to continue...')

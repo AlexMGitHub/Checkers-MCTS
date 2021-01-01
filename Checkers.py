@@ -421,7 +421,7 @@ class Checkers:
                         self.state[0,row,col] = 1
                     elif row > 4:
                         self.state[2,row,col] = 1
-                 
+
     def predict(self, state):
         """Use the supplied neural network to predict the Q-value of a given
         state, as well as the prior probabilities of its child states.
@@ -429,10 +429,11 @@ class Checkers:
         probabilities to sum to 1.
         """
         prob_vector, q_value = self.neural_net.predict(state[:14].reshape(1,14,8,8))
+        prob_vector, q_value = prob_vector[0], q_value[0][0] 
         action_mask = self.create_action_mask(state)
         prob_vector *= action_mask
         prob_vector = prob_vector / np.sum(prob_vector)
-        return prob_vector[0], q_value[0][0]
+        return prob_vector, q_value
 
     def create_action_mask(self, state):
         """Creates mask to apply to neural network predictions.  Masks all 
@@ -486,11 +487,19 @@ class Checkers_GUI:
         self.board_height = 8*self.sq_dim # Pixels
         self.board_offset = 100 # Pixels
         self.move_delay = 1 # Seconds between animations
+        self.p1_pwin = 50
+        self.p2_pwin = 50
         self.GREEN = (1,50,32)
+        self.RED = (135,14,14)
+        self.BLACK = (0,0,0)
         self.BROWN = (101,67,33)
         self.WHITE = (255,255,255)
+        self.BLUE = (3,53,252)
+        self.RED2 = (255,0,0)
+        self.BLACK2 = (128,120,120)
         self.gridfont = pygame.font.SysFont('Segoe UI', 32)
         self.statusfont = pygame.font.SysFont('Segoe UI', 28)
+        self.probfont = pygame.font.SysFont('Segoe UI', 20)
         # Load images
         self.board = pygame.image.load('img/board.png').convert_alpha()
         self.red_checker = pygame.image.load('img/red_checker.png').convert_alpha()
@@ -587,7 +596,7 @@ class Checkers_GUI:
         """Update Pygame display after blitting operations."""
         self.pygame.display.update()
 
-    def render(self):
+    def render(self, root_node=None, best_child=None):
         """Renders the new board state every time the step() method is called.
         
         Blits an indicator of the move selected in the previous state, updates
@@ -597,49 +606,27 @@ class Checkers_GUI:
         # Get current game state information
         prev_state = self.game_env.history[-2]
         state = self.game_env.state
-        move_count = self.game_env.move_count+1
-        player = player = int(state[4,0,0])
-        player1_man = 'red'
-        player2_man = 'black'
-        player_mark = player1_man if player == 0 else player2_man 
-        done = self.game_env.done
-        outcome = self.game_env.outcome
+        move_count = self.game_env.move_count
+        if move_count == 1:
+            self._blit_probs(root_node)
         # Blit selection animation
         old_xy, new_xy = self._states_to_piece_positions(prev_state, state)
         self._blit_selected_move(prev_state, state, old_xy, new_xy)
         self.update_screen()
         time.sleep(self.move_delay)
-        # Blit board and pieces
+        # Blit board and pieces after move
         self.gameDisplay.blit(self.board, 
                               (self.board_offset,self.board_offset), 
                               (0, 0, self.board_width, self.board_height))
         self._blit_pieces(state)
         self.update_screen()
-        time.sleep(self.move_delay)        
-        # Erase old status text and blit new status text
-        self.pygame.draw.rect(self.gameDisplay, self.GREEN, (0,
-                        self.board_height+self.board_offset,
-                        self.game_width,
-                        self.game_height-self.board_height-self.board_offset)) 
-        if not done:
-            status_str = 'Move #{}: It\'s now Player {}\'s turn ({})'.format(move_count, player+1, player_mark)
-            status_text = self.statusfont.render(status_str, True, self.WHITE)
-            self.gameDisplay.blit(status_text, (self.board_offset,
-                               self.board_offset+self.board_height+30))
-        else:
-            status_str = 'Game over after {} moves!'.format(move_count)
-            status_text = self.statusfont.render(status_str, True, self.WHITE)
-            self.gameDisplay.blit(status_text, (self.board_offset,
-                               self.board_offset+self.board_height+30))
-            status_str = 'The outcome is: {}'.format(outcome)
-            status_text = self.statusfont.render(status_str, True, self.WHITE)
-            self.gameDisplay.blit(status_text, (self.board_offset,
-                               self.board_offset+self.board_height+62))
-        
-        # Blit new possible moves
+        time.sleep(self.move_delay)
+        # Blit next player's possible moves, prior probs, update status text
         self._blit_possible_moves(state)
+        self._blit_probs(best_child)
+        self._blit_status(root_node, best_child)
         self.update_screen()
-        
+       
     def _states_to_piece_positions(self, prev_state, state):
         """Given a previous state and the current state, return two (x,y)
         coordinates.  The first coordinate will be the location of the piece
@@ -689,7 +676,72 @@ class Checkers_GUI:
                 self.gameDisplay.blit(piece[idx],
                           (self.board_offset+self.sq_dim*y, 
                            self.board_offset+self.sq_dim*x)) 
-                
+    
+    def _blit_probs(self, node):
+        """Blit the prior probability associated with each possible move."""
+        if self.game_env.neural_net is None: return
+        player = int(node.state[4,0,0])
+        color = self.RED if player == 0 else self.BLACK
+        shift = [(-1,-1), (-1,1), (1,-1), (1,1), (-2,-2), (-2,2), (2,-2), (2,2)]
+        offsetx = 20
+        offsety = 20
+        corner = [(offsetx*-np.sign(x[0]),offsety*-np.sign(x[1])) for x in shift]
+        for child in node.children:
+            layer = int(child.state[14,0,0])
+            x = child.state[14,0,1]
+            y = child.state[14,0,2]
+            prob = str(int(np.round(child.p*100, 0)))
+            prob_text = self.probfont.render(prob + '%', True, color)
+            self.gameDisplay.blit(prob_text, 
+                  (self.board_offset+self.sq_dim//2-10+corner[layer-6][1]+
+                   (y + shift[layer-6][1])*self.sq_dim,
+                   self.board_offset+self.sq_dim//2+-5+corner[layer-6][0]+
+                   (x + shift[layer-6][0])*self.sq_dim))
+            
+    def _blit_status(self, root_node, best_child):
+        """Blit status text containing move count, current player, and player's
+        confidence in winning.  If game is over, display outcome.
+        """
+        move_count = self.game_env.move_count+1
+        state = best_child.state
+        prev_state = root_node.state
+        player = int(state[4,0,0])
+        prev_player = int(prev_state[4,0,0])
+        player1_man = 'red'
+        player2_man = 'black'
+        player_mark = player1_man if player == 0 else player2_man 
+        done = self.game_env.done
+        outcome = self.game_env.outcome
+        self.pygame.draw.rect(self.gameDisplay, self.GREEN, (0,
+                        self.board_height+self.board_offset,
+                        self.game_width,
+                        self.game_height-self.board_height-self.board_offset)) 
+        if not done:
+            status_str = 'Move #{}: It\'s now Player {}\'s turn ({})'.format(
+                move_count, player+1, player_mark)
+            status_text = self.statusfont.render(status_str, True, self.WHITE)
+            self.gameDisplay.blit(status_text, (self.board_offset,
+                               self.board_offset+self.board_height+30))
+            if self.game_env.neural_net:
+                if prev_player == 0:
+                    self.p1_pwin = root_node.pwin
+                else:
+                    self.p2_pwin = root_node.pwin
+                status_str = 'P1/P2\'s confidence in winning: {:4.1f}%'\
+                    ' / {:4.1f}%'.format(self.p1_pwin, self.p2_pwin)
+                status_text = self.statusfont.render(status_str, True, self.WHITE)
+                self.gameDisplay.blit(status_text, (self.board_offset,
+                                   self.board_offset+self.board_height+62))
+        else:
+            status_str = 'Game over after {} moves!'.format(move_count)
+            status_text = self.statusfont.render(status_str, True, self.WHITE)
+            self.gameDisplay.blit(status_text, (self.board_offset,
+                               self.board_offset+self.board_height+30))
+            status_str = 'The outcome is: {}'.format(outcome)
+            status_text = self.statusfont.render(status_str, True, self.WHITE)
+            self.gameDisplay.blit(status_text, (self.board_offset,
+                               self.board_offset+self.board_height+62))
+            
     def _create_board_image(self):
         """Assemble Checkers board into a single image and save to disk.
         Only needs to be run when a change to the Checkers board design is 

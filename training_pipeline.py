@@ -60,40 +60,63 @@ class generate_Checkers_data():
             print('Beginning game {} of {}!'.format(_+1, self.NUM_TRAINING_GAMES))
             experiences = []
             initial_state = game_env.state
-            root_node1 = MCTS_Node(initial_state, parent=None)    
+            root_node1 = MCTS_Node(initial_state, parent=None)
+            truncated_game = False
+            parent_player = 'player2'
             while not game_env.done: # Game loop
                 if game_env.current_player(game_env.state) == 'player1':
-                    if game_env.move_count != 0:  # Update P1 root node w/ P2's move
+                    if game_env.move_count != 0:  # Update P1 root node w/ P2's mov  parent_player = best_child1.parent.playere
+                        parent_player = MCTS.current_player(game_env.history[-2])
                         root_node1 = MCTS.new_root_node(best_child1)
                     MCTS.begin_tree_search(root_node1)
                     best_child1 = MCTS.best_child(root_node1)
                     game_env.step(best_child1.state)
                     prob_vector = self._create_prob_vector(root_node1)
-                    experiences.append([root_node1.state, prob_vector])
+                    if parent_player != root_node1.player:
+                        qval = -root_node1.q  
+                    else:
+                        qval = root_node1.q
+                    experiences.append([root_node1.state, prob_vector, qval])
                 else:
                     if game_env.move_count == 1: # Initialize second player's MCTS node 
                        root_node2 = MCTS_Node(game_env.state, parent=None, 
                                               initial_state=initial_state)
+                       parent_player = 'player1'
                     else: # Update P2 root node with P1's move
+                        parent_player = MCTS.current_player(game_env.history[-2])
                         root_node2 = MCTS.new_root_node(best_child2)
                     MCTS.begin_tree_search(root_node2)
                     best_child2 = MCTS.best_child(root_node2)
                     game_env.step(best_child2.state)
                     prob_vector = self._create_prob_vector(root_node2)
-                    experiences.append([root_node2.state, prob_vector])
+                    if parent_player != root_node2.player:
+                        qval = -root_node2.q  
+                    else:
+                        qval = root_node2.q
+                    experiences.append([root_node2.state, prob_vector, qval])
                 if not game_env.done and game_env.move_count >= self.TRUNCATE_CNT:
+                    truncated_game = True
                     game_env.done = True
                     state = game_env.state
                     p1_cnt = np.sum(state[0:2])
                     p2_cnt = np.sum(state[2:4])
+                    p1_king_cnt = np.sum(state[1])
+                    p2_king_cnt = np.sum(state[3])
                     if p1_cnt > p2_cnt:
                         game_env.outcome = 'player1_wins'
                     elif p1_cnt < p2_cnt:
                         game_env.outcome = 'player2_wins'
                     else:
-                        game_env.outcome = 'draw'
-            prob_vector = np.zeros((256,)) # Terminal state
-            experiences.append([game_env.state, prob_vector]) # Terminal state
+                        if p1_king_cnt > p2_king_cnt:
+                            game_env.outcome = 'player1_wins'
+                        elif p1_king_cnt < p2_king_cnt:
+                            game_env.outcome = 'player2_wins'
+                        else:
+                            game_env.outcome = 'draw'
+            if not truncated_game: # Include terminal state
+                prob_vector = np.zeros((256,))
+                node_q = 0 if game_env.outcome == 'draw' else -1
+                experiences.append([game_env.state, prob_vector, node_q])
             experiences = self._add_rewards(experiences, game_env.outcome)
             memory.extend(experiences)
             print('{} after {} moves!'.format(game_env.outcome, game_env.move_count))
@@ -101,9 +124,9 @@ class generate_Checkers_data():
         if MCTS.multiproc: 
                 MCTS.pool.close()
                 MCTS.pool.join()
-        self._save_memory(memory, self.TRAINING_ITERATION, 
+        filename = self._save_memory(memory, self.TRAINING_ITERATION, 
                           self._create_timestamp())
-        return memory
+        return memory, filename
 
     def _create_prob_vector(self, node):
         """Populate the probability vector used to train the neural network's
@@ -129,17 +152,18 @@ class generate_Checkers_data():
         return prob_vector
 
     def _add_rewards(self, experiences, outcome):
-        """Backpropagate the reward at the end of the episode to every state.
-        This is used to train the value head of the neural network by 
-        providing the actual outcome of the game as training data.
+        """Include a reward with every state based on the outcome of the 
+        episode.  This is used to train the value head of the neural network by 
+        providing the actual outcome of the game as training data.  Note that
+        the rewards are not reversed like in the MCTS.
         """
         for experience in experiences:
             state = experience[0]
             player = int(state[4,0,0])
             if outcome == 'player1_wins':
-                reward = -1 if player == 0 else 1
+                reward = 1 if player == 0 else -1
             elif outcome == 'player2_wins':
-                reward = -1 if player == 1 else 1
+                reward = 1 if player == 1 else -1
             elif outcome == 'draw':
                 reward = 0
             experience.append(reward)
@@ -151,6 +175,7 @@ class generate_Checkers_data():
             + timestamp + '.pkl'
         with open(filename, 'wb') as file:
             pickle.dump(memory, file)
+        return filename
         
     def _create_timestamp(self):
         """Create timestamp string to be used in filenames."""
@@ -221,8 +246,9 @@ class tournament_Checkers:
         if MCTS.multiproc: 
                 MCTS.pool.close()
                 MCTS.pool.join()
-        self._save_tourney_results(game_outcomes)
+        filename = self._save_tourney_results(game_outcomes)
         print('Tournament over!  View results in tournament folder!')
+        return filename
         
     def _save_tourney_results(self, game_outcomes):
         """Save the results of the tournament to disk.  The file will contain
@@ -255,6 +281,7 @@ class tournament_Checkers:
             file.write('\n\n')
             file.write(tabulate(game_outcomes, tablefmt='fancy_grid',
                                 headers=headers))
+        return filename
     
     def _create_timestamp(self):
         """Create timestamp string to be used in filenames."""

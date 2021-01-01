@@ -50,7 +50,7 @@ initial_state = game_env.state
 game_env.print_board()
 
 # Set MCTS parameters
-UTC_C = 1/(2**0.5) # Constant C used to calculate UCT value
+UCT_C = 1/(2**0.5) # Constant C used to calculate UCT value
 CONSTRAINT = 'rollout' # Constraint can be 'rollout' or 'time'
 BUDGET = 1000 # Maximum number of rollouts or time in seconds
 MULTIPROC = False # Enable multiprocessing
@@ -61,7 +61,7 @@ DIRICHLET_ALPHA = 3.6 # Used to add noise to prior probabilities of actions
 DIRICHLET_EPSILON = 0.25 # Used to add noise to prior probabilities of actions 
 mcts_kwargs = {
     'GAME_ENV' : game_env,
-    'UTC_C' : UTC_C,
+    'UCT_C' : UCT_C,
     'CONSTRAINT' : CONSTRAINT,
     'BUDGET' : BUDGET,
     'MULTIPROC' : MULTIPROC,
