@@ -81,9 +81,9 @@ def states_to_piece_positions(next_states):
 
 # %% Initialize game environment and MCTS class
 # Set MCTS parameters
-UCT_C = 1/(2**0.5) # Constant C used to calculate UCT value
+UCT_C = 4#1/(2**0.5) # Constant C used to calculate UCT value
 CONSTRAINT = 'rollout' # Constraint can be 'rollout' or 'time'
-BUDGET = 200 # Maximum number of rollouts or time in seconds
+BUDGET = 400 # Maximum number of rollouts or time in seconds
 MULTIPROC = False # Enable multiprocessing
 NEURAL_NET = True # Use random rollouts if False
 VERBOSE = True # MCTS prints search start/stop messages if True
@@ -96,7 +96,7 @@ TEMP_DECAY_DELAY = 10 # Move count before beginning decay of Tau value
 # Initialize game environment
 GUI = True # Enable Pygame GUI
 if NEURAL_NET:
-    nn = load_model('data/model/Checkers_Model1_26-Dec-2020(14:44:12).h5')
+    nn = load_model('data/model/Checkers_Model1_10-Jan-2021(11:37:48).h5')
     game_env = Checkers(nn)
 else:
     game_env = Checkers(neural_net=None)

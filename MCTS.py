@@ -333,7 +333,10 @@ class MCTS:
         any other children to visit.  
         """
         if not node.printed:
-            print('\t'*(node.depth-root_depth) + '|- ({}/{})'.format(node.w, node.n))
+            pwin = 100* ((node.w / node.n) + 1 ) / 2
+            node_w_str = "{0}".format(str(round(node.w, 1) if node.w % 1 else int(node.w)))
+            print('\t'*(node.depth-root_depth) + '|- ({}/{}) ({:.1f}%)'
+                  .format(node_w_str, node.n, pwin))
             node.printed = True
         if node.children: # Choose last child in list
             if (node.children[-1].depth - root_depth) <= max_tree_depth:

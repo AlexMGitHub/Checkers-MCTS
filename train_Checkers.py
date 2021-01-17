@@ -27,6 +27,11 @@
 ###############################################################################
 """
 # %% Imports
+# Uncomment following 3 lines to force TF to use the CPU instead of GPU
+# import os
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 from Checkers import Checkers
 from training_pipeline import generate_Checkers_data
 from training_pipeline import tournament_Checkers
@@ -37,6 +42,7 @@ from keras.layers import Conv2D
 from keras.layers import Dense
 from keras.layers import Flatten
 from keras.layers import BatchNormalization
+from keras.layers import Reshape
 from keras.regularizers import l2
 from keras.optimizers import Adam
 from keras import backend as K
@@ -46,83 +52,97 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import pickle
 import tensorflow as tf
+from CLR.clr_callback import CyclicLR
+from LRFinder.keras_callback import LRFinder
 
 
 # %% Functions
-def create_nn(LR_INITIAL, conv_reg=0.001, dense_reg=0.001):
+def create_nn(conv_reg, dense_reg):
     """Create a double-headed neural network used to learn to play Checkers."""
     creg = l2(conv_reg) # Conv2D regularization param
     dreg = l2(dense_reg) # Dense regularization param
-    inputs = Input(shape = (14,8,8))
-    conv0 = Conv2D(64, (3, 3), padding='same', activation = 'relu', 
-                   use_bias = True, data_format='channels_first',
+    num_kernels = 128 # Number of Conv2D kernels in "body" of NN
+    inputs = Input(shape = (8,8,14))
+    conv0 = Conv2D(num_kernels, (3, 3), padding='same', activation = 'relu', 
+                   use_bias = True, data_format='channels_last',
                    kernel_regularizer=creg, bias_regularizer=creg)(inputs)
-    bn0 = BatchNormalization()(conv0)
-    conv1 = Conv2D(64, (3, 3), padding='same', activation = 'relu', 
-                   use_bias = True, data_format='channels_first',
+    bn0 = BatchNormalization(axis=-1)(conv0)
+    conv1 = Conv2D(num_kernels, (3, 3), padding='same', activation = 'relu', 
+                   use_bias = True, data_format='channels_last',
                    kernel_regularizer=creg, bias_regularizer=creg)(bn0)
-    bn1 = BatchNormalization()(conv1)
-    conv2 = Conv2D(64, (3, 3), padding='same', activation = 'relu', 
-                   use_bias = True, data_format='channels_first',
+    bn1 = BatchNormalization(axis=-1)(conv1)
+    conv2 = Conv2D(num_kernels, (3, 3), padding='same', activation = 'relu', 
+                   use_bias = True, data_format='channels_last',
                    kernel_regularizer=creg, bias_regularizer=creg)(bn1)
-    bn2 = BatchNormalization()(conv2)
-    conv3 = Conv2D(64, (3, 3), padding='same', activation = 'relu', 
-                   use_bias = True, data_format='channels_first',
+    bn2 = BatchNormalization(axis=-1)(conv2)
+    conv3 = Conv2D(num_kernels, (3, 3), padding='same', activation = 'relu', 
+                   use_bias = True, data_format='channels_last',
                    kernel_regularizer=creg, bias_regularizer=creg)(bn2)
-    bn3 = BatchNormalization()(conv3)
-    conv4 = Conv2D(64, (3, 3), padding='same', activation = 'relu', 
-                   use_bias = True, data_format='channels_first',
+    bn3 = BatchNormalization(axis=-1)(conv3)
+    conv4 = Conv2D(num_kernels, (3, 3), padding='same', activation = 'relu', 
+                   use_bias = True, data_format='channels_last',
                    kernel_regularizer=creg, bias_regularizer=creg)(bn3)
-    bn4 = BatchNormalization()(conv4)
-    conv5 = Conv2D(64, (3, 3), padding='same', activation = 'relu', 
-                   use_bias = True, data_format='channels_first',
+    bn4 = BatchNormalization(axis=-1)(conv4)
+    conv5 = Conv2D(num_kernels, (3, 3), padding='same', activation = 'relu', 
+                   use_bias = True, data_format='channels_last',
                    kernel_regularizer=creg, bias_regularizer=creg)(bn4)
-    bn5 = BatchNormalization()(conv5)
-    conv6 = Conv2D(64, (3, 3), padding='same', activation = 'relu', 
-                   use_bias = True, data_format='channels_first',
+    bn5 = BatchNormalization(axis=-1)(conv5)
+    conv6 = Conv2D(num_kernels, (3, 3), padding='same', activation = 'relu', 
+                   use_bias = True, data_format='channels_last',
                    kernel_regularizer=creg, bias_regularizer=creg)(bn5)
-    bn6 = BatchNormalization()(conv6)
+    bn6 = BatchNormalization(axis=-1)(conv6)
     # Create policy head
-    policy_conv1 = Conv2D(8, (3, 3), padding='same', activation = 'relu', 
-                      use_bias = True, data_format='channels_first',
+    policy_conv1 = Conv2D(num_kernels, (3, 3), padding='same', activation = 'relu', 
+                      use_bias = True, data_format='channels_last',
                       kernel_regularizer=creg, bias_regularizer=creg)(bn6)
-    bn_pol1 = BatchNormalization()(policy_conv1)
-    policy_conv2 = Conv2D(4, (1, 1), padding='same', activation = 'relu', 
-                      use_bias = True, data_format='channels_first',
+    bn_pol1 = BatchNormalization(axis=-1)(policy_conv1)
+    policy_conv2 = Conv2D(8, (1, 1), padding='same', activation = 'relu', 
+                      use_bias = True, data_format='channels_last',
                       kernel_regularizer=creg, bias_regularizer=creg)(bn_pol1)
-    bn_pol2 = BatchNormalization()(policy_conv2)
+    bn_pol2 = BatchNormalization(axis=-1)(policy_conv2)
     policy_flat1 = Flatten()(bn_pol2)
-    policy_output = Dense(256, activation = 'softmax', use_bias = True,
+    policy_output = Dense(512, activation = 'softmax', use_bias = True,
                   kernel_regularizer=dreg, bias_regularizer=dreg,
                   name='policy_head')(policy_flat1)
     # Create value head
     value_conv1 = Conv2D(1, (1, 1), padding='same', activation = 'relu', 
-                         use_bias = True, data_format='channels_first',
+                         use_bias = True, data_format='channels_last',
                          kernel_regularizer=creg, bias_regularizer=creg)(bn6)
-    bn_val1 = BatchNormalization()(value_conv1)
+    bn_val1 = BatchNormalization(axis=-1)(value_conv1)
     value_flat1 = Flatten()(bn_val1)
     value_dense1 = Dense(64, activation='relu', use_bias = True,
                  kernel_regularizer=dreg, bias_regularizer=dreg)(value_flat1)
-    bn_val2 = BatchNormalization()(value_dense1)
+    bn_val2 = BatchNormalization(axis=-1)(value_dense1)
     value_output = Dense(1, activation='tanh', use_bias = True,
                      kernel_regularizer=dreg, bias_regularizer=dreg,
                      name='value_head')(bn_val2)
     # Compile model
     model = Model(inputs, [policy_output, value_output])
-    model.compile(loss={'policy_head' : 'kullback_leibler_divergence', 
+    model.compile(loss={'policy_head' : 'categorical_crossentropy',
                         'value_head' : 'mse'}, 
                   loss_weights={'policy_head' : POLICY_LOSS_WEIGHT, 
                                   'value_head' : VALUE_LOSS_WEIGHT}, 
-                  optimizer=Adam(lr=LR_INITIAL))
+                  optimizer=Adam())
     return model
 
-@tf.autograph.experimental.do_not_convert
+#@tf.autograph.experimental.do_not_convert
 def train_nn(training_data, neural_network, val_split=0):
     """Trains neural network according to desired parameters."""
     # Create early stop callback for training
     early_stop = tf.keras.callbacks.EarlyStopping(monitor='val_loss', 
                                               patience=PATIENCE, mode='min', 
                                               min_delta=MIN_DELTA, verbose=1)
+    # Create model checkpoint callback to save best model
+    filepath = 'data/model/Checkers_Model' + str(TRAINING_ITERATION+1) + '_' \
+        + create_timestamp() + '.h5'
+    save_best = tf.keras.callbacks.ModelCheckpoint(filepath, 
+                                                   monitor='val_loss', 
+                                                   verbose=1, 
+                                                   save_best_only=True,
+                                                   save_weights_only=False, 
+                                                   mode='auto', 
+                                                   save_freq='epoch')
+    # Create data generators for training
     np.random.shuffle(training_data) # Randomize order of training data
     if val_split > 0: # Split data into training and validation sets
         validation_data = training_data[-int(len(training_data)*val_split):]
@@ -135,7 +155,14 @@ def train_nn(training_data, neural_network, val_split=0):
     # Create generator to feed training data to NN        
     training_generator = Keras_Generator(training_data, BATCH_SIZE)
     steps_per_epoch = len(training_generator)
-    # Train NN using generators and early stopping callback
+    # Set CLR options
+    clr_step_size = int(CLR_SS_COEFF * (len(training_data)/BATCH_SIZE))
+    base_lr = NN_BASE_LR
+    max_lr = NN_MAX_LR
+    mode='triangular'
+    # Define the CLR callback
+    clr = CyclicLR(base_lr=base_lr, max_lr=max_lr, step_size=clr_step_size, mode=mode)
+    # Train NN using generators and callbacks
     history = neural_network.fit(x = training_generator,
                                  steps_per_epoch = steps_per_epoch,
                                  validation_data = validation_generator,
@@ -143,8 +170,8 @@ def train_nn(training_data, neural_network, val_split=0):
                                  epochs = EPOCHS,
                                  verbose = 1,
                                  shuffle = True,
-                                 callbacks=[early_stop])
-    return history
+                                 callbacks=[early_stop, clr, save_best])
+    return history, filepath
 
 def set_nn_lrate(neural_network, lrate):
     """Set the learning rate of an existing neural network."""
@@ -193,7 +220,7 @@ def record_training_params():
     """Document the parameters used in the training pipeline."""
     filename = 'data/training_params/Checkers_Training_Params' + \
         create_timestamp() + '.txt'
-    nn_var_list = ['NN_LRATE', 'BATCH_SIZE', 'EPOCHS', 
+    nn_var_list = ['NN_BASE_LR', 'NN_MAX_LR', 'CLR_SS_COEFF', 'BATCH_SIZE', 'EPOCHS', 
                 'CONV_REG', 'DENSE_REG', 'VAL_SPLIT', 'MIN_DELTA', 'PATIENCE',
                 'POLICY_LOSS_WEIGHT', 'VALUE_LOSS_WEIGHT', 'old_nn_fn', 
                 'new_nn_fn']
@@ -201,7 +228,7 @@ def record_training_params():
         file.write('TRAINING_ITERATION = ' + str(TRAINING_ITERATION) + '\n\n')
         file.write('Data Generation Parameters:\n')
         file.write('data_fn = ' + data_fn + '\n')
-        file.write('TRUNCATE_CNT = ' + str(TRUNCATE_CNT) + '\n')
+        file.write('TERMINATE_CNT = ' + str(TERMINATE_CNT) + '\n')
         file.write('mcts_kwargs = \n')
         file.write(str(eval('mcts_kwargs')) + '\n\n')
         file.write('Neural Network Parameters:\n')
@@ -214,7 +241,29 @@ def record_training_params():
         file.write('tourney_kwargs = \n')
         file.write(str(eval('tourney_kwargs')) + '\n\n')
         
+def run_lr_finder(training_data, start_lr=1e-8, end_lr=1e-1, num_epochs=6):
+    """Linearly increase learning rate while training neural network over
+    a number of epochs.  Outputs plot of training loss versus training
+    iteration used to select the base and maximum learning rates used in CLR.
+    """
+    np.random.shuffle(training_data) # Randomize order of training data
+    model = create_nn(conv_reg=CONV_REG, dense_reg=DENSE_REG)
+    # Define LR finder callback
+    lr_finder = LRFinder(min_lr=start_lr, max_lr=end_lr)
+    # Create generator to feed training data to NN   
+    training_generator = Keras_Generator(training_data, BATCH_SIZE)
+    steps_per_epoch = len(training_generator)
+    # Perform LR finder
+    model.fit(x = training_generator,
+                steps_per_epoch = steps_per_epoch,
+                validation_data = None,
+                validation_steps = None,
+                epochs = num_epochs,
+                verbose = 1,
+                shuffle = True,
+                callbacks=[lr_finder])
         
+    
 # %% Classes
 class Keras_Generator(Sequence):
     """Generator to feed training/validation data to Keras fit() function."""
@@ -231,30 +280,33 @@ class Keras_Generator(Sequence):
         """
         data = self.data[idx * self.batch_size : (idx+1) * self.batch_size]
         states = np.array([e[0][:14] for e in data])
-        probs = np.array([e[1]for e in data])
+        states = np.moveaxis(states,1,-1) # Channels last format
+        probs = np.array([np.array(e[1]).flatten() for e in data])
         qvals = np.array([e[2]for e in data])
         zvals = np.array([e[3]for e in data])
         return (states, [probs, (qvals+zvals)/2])
 
 
-# %% Training loop
+# %% Set training pipeline parameters
 TRAINING_ITERATION = 0 # Current training iteration
 if TRAINING_ITERATION != 0: # Load previous iteration's trained NN
-    new_nn_fn = 'data/model/Checkers_Model1_27-Dec-2020(21:57:18).h5'
+    new_nn_fn = 'data/model/Checkers_Model0_16-Jan-2021(00:12:16).h5'
 
 # Set data generation parameters
-TRUNCATE_CNT = 120 # Number of moves before truncating training game
+TERMINATE_CNT = 160 # Number of moves before terminating training game
 # Set training parameters
-NN_LRATE = 0.0001 # Neural network learning rate for training
-BATCH_SIZE = 32 # Batch size for training neural network
+NN_BASE_LR = 5e-5 # Neural network minimum learning rate for CLR
+NN_MAX_LR = 1e-2 # Neural network maximum learning rate for CLR
+CLR_SS_COEFF = 4
+BATCH_SIZE = 128 # Batch size for training neural network
 EPOCHS = 100 # Maximum number of training epochs
 CONV_REG = 0.001 # L2 regularization term for Conv2D layers
 DENSE_REG = 0.001 # L2 regularization term for Dense layers
-VAL_SPLIT = 0.10 # Fraction of training data to use for validation
+VAL_SPLIT = 0.20 # Fraction of training data to use for validation
 MIN_DELTA = 0.01 # Min amount validation loss must decrease to prevent stopping
-PATIENCE = 3 # Number of epochs of stagnation before stopping training
+PATIENCE = 10 # Number of epochs of stagnation before stopping training
 POLICY_LOSS_WEIGHT = 1.0 # Weighting given to policy head loss
-VALUE_LOSS_WEIGHT = 0.25 # Weighting given to value head loss
+VALUE_LOSS_WEIGHT = 1.0 # Weighting given to value head loss
 # Tournament Parameters
 TOURNEY_GAMES = 10 # Number of games in tournament between NNs
 
@@ -262,13 +314,13 @@ TOURNEY_GAMES = 10 # Number of games in tournament between NNs
 # %% Set MCTS Parameters
 if TRAINING_ITERATION == 0: # Use random rollouts to generate first dataset
     NEURAL_NET = False
-    NUM_TRAINING_GAMES = 1
+    NUM_TRAINING_GAMES = 200
     CONSTRAINT = 'rollout' # Constraint can be 'rollout' or 'time'
-    BUDGET = 200 # Maximum number of rollouts or time in seconds
+    BUDGET = 400 # Maximum number of rollouts or time in seconds
     MULTIPROC = False # Enable multiprocessing
 else: 
     NEURAL_NET = True
-    NUM_TRAINING_GAMES = 1000
+    NUM_TRAINING_GAMES = 200
     CONSTRAINT = 'rollout' # Constraint can be 'rollout' or 'time'
     BUDGET = 200 # Maximum number of rollouts or time in seconds
     MULTIPROC = False # Enable multiprocessing
@@ -304,7 +356,7 @@ mcts_kwargs = { # Parameters for MCTS used in generating data
     }
 
 if TRAINING_ITERATION == 0: 
-    nn = create_nn(NN_LRATE, conv_reg=CONV_REG, dense_reg=DENSE_REG)
+    nn = create_nn(conv_reg=CONV_REG, dense_reg=DENSE_REG)
     old_nn_fn = save_nn_to_disk(nn, TRAINING_ITERATION, create_timestamp())
 else:
     old_nn_fn = new_nn_fn
@@ -326,26 +378,32 @@ tourney_kwargs = { # Parameters for MCTS used in tournament
     }
     
 
-# %% Generate training data and train neural network
-chk_data = generate_Checkers_data(NUM_TRAINING_GAMES, TRAINING_ITERATION,
-                                  TRUNCATE_CNT, **mcts_kwargs)
-training_data, data_fn = chk_data.generate_data()
-
-# Load existing training data (comment out if generating new data)
-# data_fn = 'data/training_data/Checkers_Data0_24-Dec-2020(19:57:37).pkl' # Rewards flipped
-# training_data = load_training_data(data_fn) 
+# %% SELF-PLAY STAGE
+# Generate training data
+# chk_data = generate_Checkers_data(NUM_TRAINING_GAMES, TRAINING_ITERATION,
+#                                   TERMINATE_CNT, **mcts_kwargs)
+# training_data, data_fn = chk_data.generate_data()
 
 
-# # %% Train NN
-# set_nn_lrate(nn, NN_LRATE)
-# history = train_nn(training_data, nn, val_split=VAL_SPLIT)
-# plot_filename = plot_history(history, nn)
-# new_nn_fn = save_nn_to_disk(nn, TRAINING_ITERATION+1, create_timestamp())
+# %% TRAINING STAGE
+# Load existing training data
+data_fn = 'data/training_data/Checkers_Data1_16-Jan-2021(21:18:53).pkl'
+training_data = load_training_data(data_fn) 
+data_fn = 'data/training_data/Checkers_Data1_15-Jan-2021(18:32:57).pkl'
+training_data.extend(load_training_data(data_fn)) 
+data_fn = 'data/training_data/Checkers_Data0_12-Jan-2021(09:51:47).pkl'
+training_data.extend(load_training_data(data_fn))
+
+# Train NN
+# run_lr_finder(training_data) # Comment out once CLR parameters are decided
+history, new_nn_fn = train_nn(training_data, nn, val_split=VAL_SPLIT)
+plot_filename = plot_history(history, nn)
 
 
-# # %% Enter new and old NNs into tournament
-# print('Beginning tournament between {} and {}!'.format(new_nn_fn, old_nn_fn))
-# tourney = tournament_Checkers(new_nn_fn, old_nn_fn, TOURNEY_GAMES, 
-#                               **tourney_kwargs)
-# tourney_fn = tourney.start_tournament()
-# record_training_params()
+# %% EVALUATION STAGE
+# Enter new and old NNs into tournament
+print('Beginning tournament between {} and {}!'.format(new_nn_fn, old_nn_fn))
+tourney = tournament_Checkers(new_nn_fn, old_nn_fn, TOURNEY_GAMES, 
+                              **tourney_kwargs)
+tourney_fn = tourney.start_tournament()
+record_training_params()

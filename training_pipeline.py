@@ -39,11 +39,11 @@ from keras.models import load_model
 
 class generate_Checkers_data():
     """Class to generate Checkers training data through self-play."""
-    def __init__(self, NUM_TRAINING_GAMES, TRAINING_ITERATION, TRUNCATE_CNT=100, **mcts_kwargs):
+    def __init__(self, NUM_TRAINING_GAMES, TRAINING_ITERATION, TERMINATE_CNT=100, **mcts_kwargs):
         """Set trainng parameters and initialize MCTS class."""
         self.NUM_TRAINING_GAMES = NUM_TRAINING_GAMES
         self.TRAINING_ITERATION = TRAINING_ITERATION
-        self.TRUNCATE_CNT = TRUNCATE_CNT
+        self.TERMINATE_CNT = TERMINATE_CNT
         self.game_env = mcts_kwargs['GAME_ENV']
         MCTS(**mcts_kwargs) # Set MCTS parameters
    
@@ -51,7 +51,7 @@ class generate_Checkers_data():
         """Generate Checkers training data for a neural network through 
         self-play.  Plays the user-specified number of games, and returns the 
         data as a list of lists.  Each sub-list contains a game state, a
-        probability vector, and the terminal reward of the episode from the 
+        probability planes, and the terminal reward of the episode from the 
         perspective of the state's current player.
         """
         game_env = self.game_env
@@ -61,22 +61,22 @@ class generate_Checkers_data():
             experiences = []
             initial_state = game_env.state
             root_node1 = MCTS_Node(initial_state, parent=None)
-            truncated_game = False
+            terminated_game = False
             parent_player = 'player2'
             while not game_env.done: # Game loop
                 if game_env.current_player(game_env.state) == 'player1':
-                    if game_env.move_count != 0:  # Update P1 root node w/ P2's mov  parent_player = best_child1.parent.playere
+                    if game_env.move_count != 0:  # Update P1 root node w/ P2's move
                         parent_player = MCTS.current_player(game_env.history[-2])
                         root_node1 = MCTS.new_root_node(best_child1)
                     MCTS.begin_tree_search(root_node1)
                     best_child1 = MCTS.best_child(root_node1)
                     game_env.step(best_child1.state)
-                    prob_vector = self._create_prob_vector(root_node1)
+                    prob_planes = self._create_prob_planes(root_node1)
                     if parent_player != root_node1.player:
                         qval = -root_node1.q  
                     else:
                         qval = root_node1.q
-                    experiences.append([root_node1.state, prob_vector, qval])
+                    experiences.append([root_node1.state, prob_planes, qval])
                 else:
                     if game_env.move_count == 1: # Initialize second player's MCTS node 
                        root_node2 = MCTS_Node(game_env.state, parent=None, 
@@ -88,14 +88,14 @@ class generate_Checkers_data():
                     MCTS.begin_tree_search(root_node2)
                     best_child2 = MCTS.best_child(root_node2)
                     game_env.step(best_child2.state)
-                    prob_vector = self._create_prob_vector(root_node2)
+                    prob_planes = self._create_prob_planes(root_node2)
                     if parent_player != root_node2.player:
                         qval = -root_node2.q  
                     else:
                         qval = root_node2.q
-                    experiences.append([root_node2.state, prob_vector, qval])
-                if not game_env.done and game_env.move_count >= self.TRUNCATE_CNT:
-                    truncated_game = True
+                    experiences.append([root_node2.state, prob_planes, qval])
+                if not game_env.done and game_env.move_count >= self.TERMINATE_CNT:
+                    terminated_game = True
                     game_env.done = True
                     state = game_env.state
                     p1_cnt = np.sum(state[0:2])
@@ -113,10 +113,11 @@ class generate_Checkers_data():
                             game_env.outcome = 'player2_wins'
                         else:
                             game_env.outcome = 'draw'
-            if not truncated_game: # Include terminal state
-                prob_vector = np.zeros((256,))
+            if not terminated_game: # Include terminal state
+                #prob_vector = np.zeros((256,))
+                prob_planes = np.zeros((8,8,8))
                 node_q = 0 if game_env.outcome == 'draw' else -1
-                experiences.append([game_env.state, prob_vector, node_q])
+                experiences.append([game_env.state, prob_planes, node_q])
             experiences = self._add_rewards(experiences, game_env.outcome)
             memory.extend(experiences)
             print('{} after {} moves!'.format(game_env.outcome, game_env.move_count))
@@ -128,28 +129,23 @@ class generate_Checkers_data():
                           self._create_timestamp())
         return memory, filename
 
-    def _create_prob_vector(self, node):
-        """Populate the probability vector used to train the neural network's
+    def _create_prob_planes(self, node):
+        """Populate the probability planes used to train the neural network's
         policy head.  Uses the probabilities generated by the MCTS for each 
         child node of the given node.
         """
-        prob_vector = np.zeros((256,))
+        prob_planes = np.zeros((8,8,8))
         for child in node.children:
-            layer = child.state[14,0,0]
-            x = child.state[14,0,1]
-            y = child.state[14,0,2]
+            layer = int(child.state[14,0,0] - 6)
+            x = int(child.state[14,0,1])
+            y = int(child.state[14,0,2])
             if x % 2 == y % 2: raise ValueError('Invalid (x,y) locations for probabilities!')
-            if not (6 <= layer <= 13): raise ValueError('Invalid layer for probabilities!')
-            idx = (layer-6) * 32 + x * 4
-            if y % 2 == 0:
-                idx += y / 2
-            elif y % 2 == 1:
-                idx += (y-1) / 2
-            prob_vector[int(idx)] = child.n
-        prob_vector /= np.sum(prob_vector)
-        if not np.isclose(np.sum(prob_vector), 1): 
+            if not (0 <= layer <= 7): raise ValueError('Invalid layer for probabilities!')
+            prob_planes[layer, x, y] = child.n
+        prob_planes /= np.sum(prob_planes)
+        if not np.isclose(np.sum(prob_planes), 1): 
             raise ValueError('Probabilities do not sum to 1!')
-        return prob_vector
+        return prob_planes
 
     def _add_rewards(self, experiences, outcome):
         """Include a reward with every state based on the outcome of the 
