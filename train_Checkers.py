@@ -31,35 +31,36 @@
 """
 
 # %% Set training pipeline parameters
-TRAINING_ITERATION = 1 # Current training iteration
-# NN_FN required if TRAINING_ITERATION > 0
-NN_FN = 'data/model/Checkers_Model1_16-Jan-2021(21:50:58).h5'
+TRAINING_ITERATION = 2 # Current training iteration
+# NN_FN required if TRAINING_ITERATION > 0 and SELFPLAY = TRUE
+NN_FN = 'data/model/Checkers_Model2_23-Jan-2021(17:47:37).h5'
 # NEW_NN_FN required if TRAINING = FALSE and EVALUATION = TRUE
 NEW_NN_FN = 'data/model/Checkers_Model2_23-Jan-2021(17:47:37).h5'
-SELFPLAY = False     # If True self-play phase will be executed
+SELFPLAY = True     # If True self-play phase will be executed
 TRAINING = False    # If True training phase will be executed
-EVALUATION = True  # If True evaluation phase will be executed
+EVALUATION = False  # If True evaluation phase will be executed
 
 
 # %% Imports
 import os
-from training_pipeline2 import record_params
+from training_pipeline import record_params
 if SELFPLAY or EVALUATION: # Force Keras to use CPU
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
-    from training_pipeline2 import generate_Checkers_data
+if SELFPLAY: 
+    from training_pipeline import generate_Checkers_data
 if TRAINING:
-    from training_pipeline2 import merge_data
-    from training_pipeline2 import load_training_data
-    from training_pipeline2 import create_nn
-    from training_pipeline2 import save_nn_to_disk
-    from training_pipeline2 import run_lr_finder
-    from training_pipeline2 import train_nn
-    from training_pipeline2 import plot_history
-    from training_pipeline2 import create_timestamp
-    from keras.models import load_model
+    from training_pipeline import merge_data
+    from training_pipeline import load_training_data
+    from training_pipeline import create_nn
+    from training_pipeline import save_nn_to_disk
+    from training_pipeline import run_lr_finder
+    from training_pipeline import train_nn
+    from training_pipeline import plot_history
+    from training_pipeline import create_timestamp
+    from tensorflow.keras.models import load_model
 if EVALUATION:
-    from training_pipeline2 import tournament_Checkers
+    from training_pipeline import tournament_Checkers
 
 
 # %% SELF-PLAY STAGE
@@ -69,9 +70,9 @@ NEURAL_NET = False if TRAINING_ITERATION == 0 else True
 selfplay_kwargs = {
 'TRAINING_ITERATION' : TRAINING_ITERATION,
 'NN_FN' : NN_FN,
-'NUM_SELFPLAY_GAMES' : 50,
+'NUM_SELFPLAY_GAMES' : 1,
 'TERMINATE_CNT' : 160,       # Number of moves before terminating training game
-'NUM_CPUS' : 4              # Number of CPUs to use for parallel self-play
+'NUM_CPUS' : 2              # Number of CPUs to use for parallel self-play
 }
 
 mcts_kwargs = { # Parameters for MCTS used in generating data

@@ -28,7 +28,7 @@
 ###############################################################################
 """
 
-from keras.utils import Sequence
+from tensorflow.keras.utils import Sequence
 from Checkers import Checkers
 from CLR.clr_callback import CyclicLR
 from LRFinder.keras_callback import LRFinder
@@ -43,14 +43,14 @@ import matplotlib.pyplot as plt
 # %% Functions
 def create_nn(**kwargs):
     """Create a double-headed neural network used to learn to play Checkers."""
-    from keras.models import Model
-    from keras.layers import Input
-    from keras.layers import Conv2D
-    from keras.layers import Dense
-    from keras.layers import Flatten
-    from keras.layers import BatchNormalization
-    from keras.regularizers import l2
-    from keras.optimizers import Adam
+    from tensorflow.keras.models import Model
+    from tensorflow.keras.layers import Input
+    from tensorflow.keras.layers import Conv2D
+    from tensorflow.keras.layers import Dense
+    from tensorflow.keras.layers import Flatten
+    from tensorflow.keras.layers import BatchNormalization
+    from tensorflow.keras.regularizers import l2
+    from tensorflow.keras.optimizers import Adam
     creg = l2(kwargs['CONV_REG']) # Conv2D regularization param
     dreg = l2(kwargs['DENSE_REG']) # Dense regularization param
     num_kernels = kwargs['NUM_KERNELS'] # Num of Conv2D kernels in "body" of NN
@@ -180,7 +180,7 @@ def train_nn(training_data, neural_network, **kwargs):
 
 def set_nn_lrate(neural_network, lrate):
     """Set the learning rate of an existing neural network."""
-    from keras import backend as K
+    from tensorflow.keras import backend as K
     K.set_value(neural_network.optimizer.learning_rate, lrate)
     
 def save_nn_to_disk(neural_network, iteration, timestamp):
@@ -336,7 +336,7 @@ class generate_Checkers_data():
         perspective of the state's current player.
         """
         np.random.seed()
-        from keras.models import load_model
+        from tensorflow.keras.models import load_model
         from MCTS import MCTS
         from MCTS import MCTS_Node
         game_env = Checkers(load_model(self.nn_fn))
@@ -507,7 +507,7 @@ class tournament_Checkers:
         player 2.  Results of the tournament are written to disk.
         """
         np.random.seed()
-        from keras.models import load_model
+        from tensorflow.keras.models import load_model
         from MCTS import MCTS
         from MCTS import MCTS_Node
         nn1 = load_model(self.nn1_fn)
