@@ -4,8 +4,8 @@
 ###############################################################################
 # train_Checkers.py
 #
-# Revision:     1.00
-# Date:         11/27/2020
+# Revision:     1.10
+# Date:         1/26/2021
 # Author:       Alex
 #
 # Purpose:      Trains a neural network to play Checkers using self-play data.  
@@ -17,28 +17,31 @@
 # Inputs:
 # 1. The iteration of the training pipeline (start with TRAINING_ITERATION = 0)
 # 2. The filename of the previous iteration's trained neural network (NN_FN)
-# 3. Various parameters for training the neural network.
-# 4. Which phases of the training pipeline to run
+# 3. Which phases of the training pipeline to run
+# 4. Various parameters for each phase of the training pipeline
 #
 # Outputs:
-# 1. Saves the trained neural networks to /data/model.
-# 2. Saves plots of the NN training loss to /data/plots.
+# 1. Saves self-play data to /data/training_data
+# 2. Saves the trained neural networks to /data/model.
+# 3. Saves plots of the NN training loss to /data/plots.
+# 4. Saves tournament results to /data/tournament_results
 #
 # Notes:
-#
+# 1. Self-play forces Keras to use CPU inferences, and the IPython kernel must
+#    be restarted between the self-play and training phases to enable the GPU.
 #
 ###############################################################################
 """
 
 # %% Set training pipeline parameters
-TRAINING_ITERATION = 2 # Current training iteration
+TRAINING_ITERATION = 1 # Current training iteration
 # NN_FN required if TRAINING_ITERATION > 0 and SELFPLAY = TRUE
-NN_FN = 'data/model/Checkers_Model2_23-Jan-2021(17:47:37).h5'
+NN_FN = 'data/model/Checkers_Model1_16-Jan-2021(21:50:58).h5'
 # NEW_NN_FN required if TRAINING = FALSE and EVALUATION = TRUE
-NEW_NN_FN = 'data/model/Checkers_Model2_23-Jan-2021(17:47:37).h5'
-SELFPLAY = True     # If True self-play phase will be executed
+NEW_NN_FN = 'data/model/Checkers_Model1_16-Jan-2021(21:50:58).h5'
+SELFPLAY = True    # If True self-play phase will be executed
 TRAINING = False    # If True training phase will be executed
-EVALUATION = False  # If True evaluation phase will be executed
+EVALUATION = False   # If True evaluation phase will be executed
 
 
 # %% Imports
@@ -70,8 +73,8 @@ NEURAL_NET = False if TRAINING_ITERATION == 0 else True
 selfplay_kwargs = {
 'TRAINING_ITERATION' : TRAINING_ITERATION,
 'NN_FN' : NN_FN,
-'NUM_SELFPLAY_GAMES' : 1,
-'TERMINATE_CNT' : 160,       # Number of moves before terminating training game
+'NUM_SELFPLAY_GAMES' : 50,
+'TERMINATE_CNT' : 160,      # Number of moves before terminating training game
 'NUM_CPUS' : 2              # Number of CPUs to use for parallel self-play
 }
 
@@ -101,7 +104,7 @@ if SELFPLAY:
 training_kwargs = {     # Parameters used to train neural network
 'TRAINING_ITERATION' : TRAINING_ITERATION,
 'NN_BASE_LR' : 5e-5,    # Neural network minimum learning rate for CLR
-'NN_MAX_LR' : 1e-2,     # Neural network maximum learning rate for CLR
+'NN_MAX_LR' : 1e-4,     # Neural network maximum learning rate for CLR
 'CLR_SS_COEFF' : 4,     # CLR step-size coefficient
 'BATCH_SIZE' : 128,     # Batch size for training neural network
 'EPOCHS' : 100,         # Maximum number of training epochs
@@ -136,6 +139,7 @@ if TRAINING:
         WINDOW_START = max(0, TRAINING_ITERATION + 1 - SLIDING_WINDOW)
         DATA_ITERATIONS = list(range(WINDOW_START, TRAINING_ITERATION+1))
         valid_fns = []
+        fns = os.listdir('data/training_data')
         for data_iter in DATA_ITERATIONS:
             token = 'Data' + str(data_iter)
             valid_fns.extend([fn for fn in fns if token in fn])
@@ -169,7 +173,7 @@ tourney_kwargs = {
 'TRAINING_ITERATION' : TRAINING_ITERATION,
 'OLD_NN_FN' : NN_FN,
 'NEW_NN_FN' : NEW_NN_FN,   
-'TOURNEY_GAMES' : 2,       # Number of games in tournament between NNs
+'TOURNEY_GAMES' : 2,        # Number of games in tournament between NNs
 'NUM_CPUS' : 5              # Number of CPUs to use for parallel tourney play
 }
 
@@ -193,4 +197,4 @@ if EVALUATION:
     print('Beginning tournament between {} and {}!'.format(NEW_NN_FN, NN_FN))
     tourney = tournament_Checkers(tourney_kwargs, tourney_mcts_kwargs)
     tourney_fn = tourney.start_tournament()
-    record_params('evaluation', **{**tourney_kwargs, **tourney_mcts_kwargs}) 
+    record_params('evaluation', **{**tourney_kwargs, **tourney_mcts_kwargs})

@@ -566,7 +566,7 @@ class tournament_Checkers:
         fn2 = game_outcomes[0][2]
         fn1_wins, fn2_wins, draws = 0, 0, 0
         for idx, outcome_list in enumerate(game_outcomes):
-            outcome_list[0] = idx # Renumber games
+            outcome_list[0] = idx+1 # Renumber games
         for game_num, p1_fn, p2_fn, outcome, move_count in game_outcomes:
             if outcome == 'player1_wins':
                 if p1_fn == fn1: fn1_wins += 1

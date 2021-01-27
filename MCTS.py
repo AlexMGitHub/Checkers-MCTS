@@ -53,7 +53,6 @@ class MCTS:
         cls.tau = kwargs['TEMPERATURE_TAU']
         cls.tau_decay = kwargs['TEMPERATURE_DECAY']
         cls.tau_decay_delay = kwargs['TEMP_DECAY_DELAY']
-        cls.root_player = ''
         if cls.multiproc and not cls.neural_net: 
             cls.pool = mp.Pool(MAX_PROCESSORS)
         
@@ -76,7 +75,7 @@ class MCTS:
                     child_node = MCTS_Node(next_state, parent=node)
                     node.children.append(child_node) # Expand tree
                 cls.game_env.set_prior_probs(node.children, prob_vector)
-                node.backpropagation(q_value) 
+                node.backpropagation(q_value, node.player) 
             else:
                 next_state = node.unvisited_child_states.pop()
                 child_node = MCTS_Node(next_state, parent=node)
@@ -86,7 +85,7 @@ class MCTS:
                         outcomes = cls.pool.map(cls.default_policy, 
                                                 MAX_PROCESSORS*[child_node])
                         for outcome in outcomes:
-                            child_node.backpropagation(outcome)
+                            child_node.backpropagation(outcome, child_node.player)
                     else:
                         child_node.simulation() # Begin simulation phase
         else:
@@ -98,7 +97,7 @@ class MCTS:
                     child_node.selection() # Continue selection phase
             else: # Node is terminal state
                 outcome = cls.determine_outcome(node)
-                node.backpropagation(outcome)               
+                node.backpropagation(outcome, node.player)               
     
     @classmethod
     def select_child(cls, node):
@@ -142,13 +141,13 @@ class MCTS:
                 legal_next_states = game_sim.legal_next_states
                 move_idx = np.random.randint(0,len(legal_next_states))
                 game_sim.step(legal_next_states[move_idx])
-            return game_sim.outcome
+            return game_sim.outcome, node.player
         else:
             done, outcome = cls.determine_outcome(node) # Terminal state
-            return outcome
+            return outcome, node.player
         
     @classmethod
-    def determine_reward(cls, player, outcome, parent_node):
+    def determine_reward(cls, player, outcome, parent_node, sim_player):
         """Determine the node's reward based on the node's player and the
         outcome of the game.
         
@@ -182,7 +181,7 @@ class MCTS:
                 reward = 0
             return reward
         else: # Outcome is state's estimated Q-value from neural network
-            if parent_player != cls.root_player:
+            if sim_player != parent_player:
                 return -1*outcome # Reverse estimated Q-value
             else:
                 return outcome
@@ -215,7 +214,6 @@ class MCTS:
         selection method.  The search will continue to expand the tree until
         the computational budget is exhausted.
         """
-        cls.root_player = root_node.player
         cls.start_time = datetime.now()
         cls.rollout_count = 0
         if cls.verbose: print('Starting search!')
@@ -418,17 +416,18 @@ class MCTS_Node:
         """Simulate the game from the current node according to the default 
         policy.  Backpropagate the outcome back to the root node.
         """
-        outcome = MCTS.default_policy(self)
-        self.backpropagation(outcome)
+        outcome, sim_player = MCTS.default_policy(self)
+        self.backpropagation(outcome, sim_player)
     
-    def backpropagation(self, outcome):
+    def backpropagation(self, outcome, sim_player):
         """Simulation result is backpropagated through the selected nodes
         to the root node, and their statistics are updated.
         """
-        reward = MCTS.determine_reward(self.player, outcome, self.parent)
+        reward = MCTS.determine_reward(self.player, outcome, self.parent, 
+                                       sim_player)
         self._number_of_visits += 1
         self._total_reward += reward
         if self.parent:
-            self.parent.backpropagation(outcome)
+            self.parent.backpropagation(outcome, sim_player)
         else:
             MCTS.rollout_count += 1       
