@@ -29,16 +29,17 @@
 # Notes:
 # 1. Self-play forces Keras to use CPU inferences, and the IPython kernel must
 #    be restarted between the self-play and training phases to enable the GPU.
+#    The same is true between the training and evaluation phases.
 #
 ###############################################################################
 """
 
 # %% Set training pipeline parameters
-TRAINING_ITERATION = 1 # Current training iteration
+TRAINING_ITERATION = 2 # Current training iteration
 # NN_FN required if TRAINING_ITERATION > 0 and SELFPLAY = TRUE
-NN_FN = 'data/model/Checkers_Model1_16-Jan-2021(21:50:58).h5'
+NN_FN = 'data/model/Checkers_Model2_28-Jan-2021(12:15:35).h5'
 # NEW_NN_FN required if TRAINING = FALSE and EVALUATION = TRUE
-NEW_NN_FN = 'data/model/Checkers_Model1_16-Jan-2021(21:50:58).h5'
+NEW_NN_FN = 'data/model/Checkers_Model2_28-Jan-2021(12:15:35).h5'
 SELFPLAY = True    # If True self-play phase will be executed
 TRAINING = False    # If True training phase will be executed
 EVALUATION = False   # If True evaluation phase will be executed
@@ -104,7 +105,7 @@ if SELFPLAY:
 training_kwargs = {     # Parameters used to train neural network
 'TRAINING_ITERATION' : TRAINING_ITERATION,
 'NN_BASE_LR' : 5e-5,    # Neural network minimum learning rate for CLR
-'NN_MAX_LR' : 1e-4,     # Neural network maximum learning rate for CLR
+'NN_MAX_LR' : 1e-2,     # Neural network maximum learning rate for CLR
 'CLR_SS_COEFF' : 4,     # CLR step-size coefficient
 'BATCH_SIZE' : 128,     # Batch size for training neural network
 'EPOCHS' : 100,         # Maximum number of training epochs
@@ -115,11 +116,12 @@ training_kwargs = {     # Parameters used to train neural network
 'MIN_DELTA' : 0.01, # Min amount val loss must decrease to prevent stopping
 'PATIENCE' : 10,    # Number of epochs of stagnation before stopping training
 'POLICY_LOSS_WEIGHT' : 1.0, # Weighting given to policy head loss
-'VALUE_LOSS_WEIGHT' : 1.0   # Weighting given to value head loss
+'VALUE_LOSS_WEIGHT' : 1.0,  # Weighting given to value head loss
+'SLIDING_WINDOW' : 1 # Number self-play iterations to include in training data
 }
 
-FIND_LR = False # Set true to find learning rate range for CLR prior to training
-SLIDING_WINDOW = 5 # Number of self-play iterations to include in training data
+FIND_LR = False # Set True to find learning rate range prior to training
+SLIDING_WINDOW = training_kwargs['SLIDING_WINDOW'] 
 
 if TRAINING:
     # Load training data
@@ -144,7 +146,7 @@ if TRAINING:
             token = 'Data' + str(data_iter)
             valid_fns.extend([fn for fn in fns if token in fn])
         training_data = []
-        for idx, fn in enumerate(valid_fns):
+        for fn in valid_fns:
             data_path = 'data/training_data/' + fn
             training_data.extend(load_training_data(data_path))
     
