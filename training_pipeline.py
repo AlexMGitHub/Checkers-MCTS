@@ -653,7 +653,7 @@ class final_evaluation():
                     game_outcomes.extend(outcome)
             self.game_outcomes.append(game_outcomes)
         self._parse_tourney_results()    
-        print('Final evaluation over!  View results in plots folder!')
+        print('Final evaluation over!  View results in final_eval folder!')
 
     def _wrapper_func(self, nn_fn):
         """Wrapper function used by the multiprocessing."""
@@ -682,13 +682,10 @@ class final_evaluation():
                 elif outcome == 'player2_wins':                    
                     self.table[p1_idx, p2_idx] -= 1
                     self.table[p2_idx, p1_idx] += 1                        
-        model_scores = []
-        for row in range(len(self.table)):
-            model_scores.append(np.sum(self.table[row]))
+        model_scores = np.sum(self.table, axis=1)
         self._plot_model_scores(model_scores)
-        col_headers = [self.model_iter_list, 'Total']
-        table = np.hstack(self.table, 
-                          np.transpose(np.array(model_scores)[np.newaxis]))
+        col_headers = self.model_iter_list + ['Total']
+        table = np.hstack((self.table, np.transpose(model_scores[np.newaxis])))
         filename = 'data/final_eval/Checkers_Final_Evaluation' + \
                     self._create_timestamp() + '.txt'
         with open(filename, 'w') as file:
@@ -697,7 +694,7 @@ class final_evaluation():
                                 tablefmt='fancy_grid'))
     
     def _plot_model_scores(self, model_scores):
-        """Plot of training loss versus training epoch and save to disk."""
+        """Saves plot of final eval points versus model iteration to disk."""
         plt.plot(self.model_iter_list, model_scores, marker='o')
         plt.title('Final Evaluation')
         plt.ylabel('Points')
