@@ -33,7 +33,7 @@ from Checkers import Checkers
 from CLR.clr_callback import CyclicLR
 from LRFinder.keras_callback import LRFinder
 import numpy as np
-import pickle
+import pickle, os
 from datetime import datetime
 from tabulate import tabulate
 import multiprocessing as mp
@@ -591,6 +591,128 @@ class tournament_Checkers:
                                 headers=headers))
         return filename
     
+    def _create_timestamp(self):
+        """Create timestamp string to be used in filenames."""
+        timestamp = datetime.now(tz=None)
+        timestamp_str = timestamp.strftime("%d-%b-%Y(%H:%M:%S)")
+        return timestamp_str
+
+
+class final_evaluation():
+    """Class that illustrates the relative improvement among trained models
+    produced during the training pipeline.  The selected models are placed in
+    a tournament where each model plays every other model twice.  The results
+    are tabulated and plotted.
+    """
+    def __init__(self, model_iter_list, tourney_kwargs, mcts_kwargs):
+        """Accepts a list of training iterations and finds the corresponding 
+        trained models in the data/model directory.  Also accepts tournament
+        parameters in the form of dictionaries.
+        """
+        self.model_iter_list = model_iter_list
+        self.model_fn_list = []
+        self.tourney_kwargs = tourney_kwargs
+        self.mcts_kwargs = mcts_kwargs
+        self.num_cpus = tourney_kwargs['NUM_CPUS']
+        self.tourney_kwargs['TOURNEY_GAMES'] = 2
+        fns = os.listdir('data/model')
+        for iter_num in model_iter_list:
+            for fn in fns:
+                model_fn = 'Model' + str(iter_num)
+                if model_fn in fn and '.h5' in fn:
+                    self.model_fn_list.append(fn)
+                    break
+        if len(self.model_fn_list) != len(self.model_iter_list):
+            raise ValueError('Model(s) not found!')
+        self.table = np.zeros((len(model_iter_list),len(model_iter_list)))
+        self.game_outcomes = []
+    
+    def start_evaluation(self, num_cpus):
+        """Uses the multiprocessing module to parallelize tournament play."""
+        model_fn_list = self.model_fn_list.copy()
+        self.num_cpus = num_cpus
+        for _ in range(len(self.model_fn_list)-1):
+            game_outcomes = []
+            new_nn_fn = model_fn_list.pop()
+            self.tourney_kwargs['NEW_NN_FN'] = 'data/model/' + new_nn_fn
+            partial_model_fn_list = model_fn_list.copy()
+            while len(partial_model_fn_list) > 0:
+                if len(partial_model_fn_list) <= self.num_cpus:
+                    num_cpus = len(partial_model_fn_list)
+                    pool_fn_list = partial_model_fn_list.copy()
+                    del partial_model_fn_list[:]
+                else:
+                    num_cpus = self.num_cpus
+                    pool_fn_list = partial_model_fn_list[-num_cpus:]
+                    del partial_model_fn_list[-num_cpus:]
+                pool = mp.Pool(num_cpus)
+                outcomes = pool.map(self._wrapper_func, pool_fn_list)
+                pool.close()
+                pool.join()
+                for outcome in outcomes:
+                    game_outcomes.extend(outcome)
+            self.game_outcomes.append(game_outcomes)
+        self._parse_tourney_results()    
+        print('Final evaluation over!  View results in plots folder!')
+
+    def _wrapper_func(self, nn_fn):
+        """Wrapper function used by the multiprocessing."""
+        tourney_kwargs = self.tourney_kwargs.copy()
+        tourney_mcts_kwargs = self.mcts_kwargs.copy()
+        tourney_kwargs['NUM_CPUS'] = 1
+        tourney_kwargs['OLD_NN_FN'] = 'data/model/' + nn_fn
+        tourney_mcts_kwargs['NN_FN'] = tourney_kwargs['NEW_NN_FN']
+        print('Beginning tournament between {} and {}!'
+              .format(tourney_kwargs['NEW_NN_FN'], tourney_kwargs['OLD_NN_FN']))
+        tourney = tournament_Checkers(tourney_kwargs, tourney_mcts_kwargs)
+        return tourney._start_tournament()
+        
+    def _parse_tourney_results(self):
+        """Save the results of the tournament to disk.  There will be two 
+        outputs saved to the data/final_eval directory: a table of the 
+        tournament results and a plot of the models' total score.
+        """
+        for game_outcomes in self.game_outcomes:
+            for game_num, p1_fn, p2_fn, outcome, move_count in game_outcomes:
+                p1_idx = self.model_fn_list.index(p1_fn)
+                p2_idx = self.model_fn_list.index(p2_fn)
+                if outcome == 'player1_wins':
+                    self.table[p1_idx, p2_idx] += 1
+                    self.table[p2_idx, p1_idx] -= 1
+                elif outcome == 'player2_wins':                    
+                    self.table[p1_idx, p2_idx] -= 1
+                    self.table[p2_idx, p1_idx] += 1                        
+        model_scores = []
+        for row in range(len(self.table)):
+            model_scores.append(np.sum(self.table[row]))
+        self._plot_model_scores(model_scores)
+        col_headers = [self.model_iter_list, 'Total']
+        table = np.hstack(self.table, 
+                          np.transpose(np.array(model_scores)[np.newaxis]))
+        filename = 'data/final_eval/Checkers_Final_Evaluation' + \
+                    self._create_timestamp() + '.txt'
+        with open(filename, 'w') as file:
+            file.write(tabulate(table, headers=col_headers, 
+                                showindex=self.model_iter_list, 
+                                tablefmt='fancy_grid'))
+    
+    def _plot_model_scores(self, model_scores):
+        """Plot of training loss versus training epoch and save to disk."""
+        plt.plot(self.model_iter_list, model_scores, marker='o')
+        plt.title('Final Evaluation')
+        plt.ylabel('Points')
+        plt.xlabel('Model Iteration Number')
+        plt.grid()
+        filename = 'data/final_eval/Checkers_Final_Evaluation' + \
+                    self._create_timestamp() + '.png'
+        plt.draw()
+        fig1 = plt.gcf()
+        fig1.set_dpi(200)
+        fig1.savefig(filename)
+        plt.show()
+        plt.close()
+        return filename
+            
     def _create_timestamp(self):
         """Create timestamp string to be used in filenames."""
         timestamp = datetime.now(tz=None)

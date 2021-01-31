@@ -37,12 +37,16 @@
 # %% Set training pipeline parameters
 TRAINING_ITERATION = 3 # Current training iteration
 # NN_FN required if TRAINING_ITERATION > 0 and SELFPLAY = TRUE
-NN_FN = 'data/model/Checkers_Model3_29-Jan-2021(16:46:13).h5'
+NN_FN = 'data/model/Checkers_Model4_30-Jan-2021(18:34:38).h5'
 # NEW_NN_FN required if TRAINING = FALSE and EVALUATION = TRUE
-NEW_NN_FN = 'data/model/Checkers_Model3_29-Jan-2021(16:46:13).h5'
-SELFPLAY = True    # If True self-play phase will be executed
-TRAINING = False    # If True training phase will be executed
-EVALUATION = False   # If True evaluation phase will be executed
+NEW_NN_FN = 'data/model/Checkers_Model4_30-Jan-2021(18:34:38).h5'
+SELFPLAY = True            # If True self-play phase will be executed
+TRAINING = False            # If True training phase will be executed
+EVALUATION = False          # If True evaluation phase will be executed
+
+# Final evaluation of models after running several training iterations 
+FINAL_EVALUATION = False         # If True final evaluation will be performed
+fe_model_nums = list(range(5))  # Iteration number of models to evaluate
 
 
 # %% Imports
@@ -65,8 +69,10 @@ if TRAINING:
     from tensorflow.keras.models import load_model
 if EVALUATION:
     from training_pipeline import tournament_Checkers
-
-
+if FINAL_EVALUATION:
+    from training_pipeline import final_evaluation
+    
+    
 # %% SELF-PLAY STAGE
 # Use random rollouts to generate first dataset
 NEURAL_NET = False if TRAINING_ITERATION == 0 else True
@@ -200,3 +206,9 @@ if EVALUATION:
     tourney = tournament_Checkers(tourney_kwargs, tourney_mcts_kwargs)
     tourney_fn = tourney.start_tournament()
     record_params('evaluation', **{**tourney_kwargs, **tourney_mcts_kwargs})
+    
+    
+# %% FINAL EVALUATION
+if FINAL_EVALUATION:
+    fe = final_evaluation(fe_model_nums, tourney_kwargs, tourney_mcts_kwargs)
+    fe.start_evaluation(num_cpus=4)
