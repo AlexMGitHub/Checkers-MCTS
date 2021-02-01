@@ -50,30 +50,21 @@ initial_state = game_env.state
 game_env.print_board()
 
 # Set MCTS parameters
-UCT_C = 1/(2**0.5) # Constant C used to calculate UCT value
-CONSTRAINT = 'rollout' # Constraint can be 'rollout' or 'time'
-BUDGET = 1000 # Maximum number of rollouts or time in seconds
-MULTIPROC = False # Enable multiprocessing
-NEURAL_NET = False # Use random rollouts if False
-VERBOSE = True # MCTS prints search start/stop messages if True
-TRAINING = False # True if training NN, False if competitive play
-DIRICHLET_ALPHA = 3.6 # Used to add noise to prior probabilities of actions
-DIRICHLET_EPSILON = 0.25 # Used to add noise to prior probabilities of actions 
-mcts_kwargs = {
-    'GAME_ENV' : game_env,
-    'UCT_C' : UCT_C,
-    'CONSTRAINT' : CONSTRAINT,
-    'BUDGET' : BUDGET,
-    'MULTIPROC' : MULTIPROC,
-    'NEURAL_NET' : NEURAL_NET,
-    'VERBOSE' : VERBOSE,
-    'TRAINING' : TRAINING,
-    'DIRICHLET_ALPHA' : DIRICHLET_ALPHA,
-    'DIRICHLET_EPSILON' : DIRICHLET_EPSILON,
-    'TEMPERATURE_TAU' : 0,
-    'TEMPERATURE_DECAY' : 0,
-    'TEMP_DECAY_DELAY' : 0
-    }
+mcts_kwargs = {     # Parameters for MCTS used in tournament
+'GAME_ENV' : game_env,
+'UCT_C' : 4,                # Constant C used to calculate UCT value
+'CONSTRAINT' : 'rollout',   # Constraint can be 'rollout' or 'time'
+'BUDGET' : 2000,            # Maximum number of rollouts or time in seconds
+'MULTIPROC' : False,        # Enable multiprocessing
+'NEURAL_NET' : False,       # If False uses random rollouts instead of NN
+'VERBOSE' : True,           # MCTS prints search start/stop messages if True
+'TRAINING' : False,         # True if self-play, False if competitive play
+'DIRICHLET_ALPHA' : 1.0,    # Used to add noise to prior probs of actions
+'DIRICHLET_EPSILON' : 0.25, # Fraction of noise added to prior probs of actions  
+'TEMPERATURE_TAU' : 0,      # Initial value of temperature Tau
+'TEMPERATURE_DECAY' : 0,    # Linear decay of Tau per move
+'TEMP_DECAY_DELAY' : 0      # Move count before beginning decay of Tau value
+}
 MCTS(**mcts_kwargs)
 
 # Choose whether to play against the MCTS or to pit them against each other

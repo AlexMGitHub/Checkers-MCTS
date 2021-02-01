@@ -225,13 +225,16 @@ def load_training_data(filename):
 def record_params(phase, **kwargs):
     """Document the parameters used in the training pipeline."""
     if phase == 'selfplay':
-        filename = 'data/training_data/Checkers_SelfPlay_Params' + \
+        filename = 'data/training_data/Checkers_SelfPlay_Params_' + \
             create_timestamp() + '.txt'
     elif phase == 'training':    
-        filename = 'data/model/Checkers_Training_Params' + \
+        filename = 'data/model/Checkers_Training_Params_' + \
             create_timestamp() + '.txt'
     elif phase == 'evaluation':
-        filename = 'data/tournament_results/Checkers_Evaluation_Params' + \
+        filename = 'data/tournament_results/Checkers_Evaluation_Params_' + \
+            create_timestamp() + '.txt'
+    elif phase == 'final':
+        filename = 'data/final_eval/Checkers_Final_Evaluation_Params_' + \
             create_timestamp() + '.txt'
     else:
         raise ValueError('Invalid phase!')
@@ -581,7 +584,7 @@ class tournament_Checkers:
         summary_table = [[fn1, fn1_wld],[fn2, fn2_wld]]
         summary_headers = ['Neural Network', 'Wins/Losses/Draws']
         headers = ['Game Number', 'Player 1', 'Player 2', 'Outcome', 'Turn Count']
-        filename = 'data/tournament_results/Tournament' + \
+        filename = 'data/tournament_results/Tournament_' + \
             self._create_timestamp() + '.txt'
         with open(filename, 'w') as file:
             file.write(tabulate(summary_table, tablefmt='fancy_grid',
@@ -686,7 +689,7 @@ class final_evaluation():
         self._plot_model_scores(model_scores)
         col_headers = self.model_iter_list + ['Total']
         table = np.hstack((self.table, np.transpose(model_scores[np.newaxis])))
-        filename = 'data/final_eval/Checkers_Final_Evaluation' + \
+        filename = 'data/final_eval/Checkers_Final_Evaluation_' + \
                     self._create_timestamp() + '.txt'
         with open(filename, 'w') as file:
             file.write(tabulate(table, headers=col_headers, 
@@ -700,7 +703,7 @@ class final_evaluation():
         plt.ylabel('Points')
         plt.xlabel('Model Iteration Number')
         plt.grid()
-        filename = 'data/final_eval/Checkers_Final_Evaluation' + \
+        filename = 'data/final_eval/Checkers_Final_Evaluation_' + \
                     self._create_timestamp() + '.png'
         plt.draw()
         fig1 = plt.gcf()

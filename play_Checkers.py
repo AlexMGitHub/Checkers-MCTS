@@ -26,6 +26,9 @@
 ###############################################################################
 """
 # %% Imports
+import os
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   
+os.environ["CUDA_VISIBLE_DEVICES"] = "" # Force Keras to use CPU for inferences
 from Checkers import Checkers
 from Checkers import Checkers_GUI
 from MCTS import MCTS
@@ -81,45 +84,34 @@ def states_to_piece_positions(next_states):
 
 # %% Initialize game environment and MCTS class
 # Set MCTS parameters
-UCT_C = 4#1/(2**0.5) # Constant C used to calculate UCT value
-CONSTRAINT = 'rollout' # Constraint can be 'rollout' or 'time'
-BUDGET = 400 # Maximum number of rollouts or time in seconds
-MULTIPROC = False # Enable multiprocessing
-NEURAL_NET = True # Use random rollouts if False
-VERBOSE = True # MCTS prints search start/stop messages if True
-TRAINING = False # True if training NN, False if competitive play
-DIRICHLET_ALPHA = 3.6 # Used to add noise to prior probabilities of actions
-DIRICHLET_EPSILON = 0.25 # Used to add noise to prior probabilities of actions
-TEMPERATURE_TAU = 1.0 # Initial value of temperature Tau
-TEMPERATURE_DECAY = 0.1 # Linear decay of Tau per move
-TEMP_DECAY_DELAY = 10 # Move count before beginning decay of Tau value
-# Initialize game environment
+mcts_kwargs = {     # Parameters for MCTS used in tournament
+'NN_FN' : 'data/model/Checkers_Model4_30-Jan-2021(18:34:38).h5',
+'UCT_C' : 4,                # Constant C used to calculate UCT value
+'CONSTRAINT' : 'rollout',   # Constraint can be 'rollout' or 'time'
+'BUDGET' : 200,             # Maximum number of rollouts or time in seconds
+'MULTIPROC' : False,        # Enable multiprocessing
+'NEURAL_NET' : True,        # If False uses random rollouts instead of NN
+'VERBOSE' : False,          # MCTS prints search start/stop messages if True
+'TRAINING' : False,         # True if self-play, False if competitive play
+'DIRICHLET_ALPHA' : 1.0,    # Used to add noise to prior probs of actions
+'DIRICHLET_EPSILON' : 0.25, # Fraction of noise added to prior probs of actions  
+'TEMPERATURE_TAU' : 0,      # Initial value of temperature Tau
+'TEMPERATURE_DECAY' : 0,    # Linear decay of Tau per move
+'TEMP_DECAY_DELAY' : 0      # Move count before beginning decay of Tau value
+}
+
+# Initialize game environment and MCTS
 GUI = True # Enable Pygame GUI
-if NEURAL_NET:
-    nn = load_model('data/model/Checkers_Model1_10-Jan-2021(11:37:48).h5')
+if mcts_kwargs['NEURAL_NET']:
+    nn = load_model(mcts_kwargs['NN_FN'])
     game_env = Checkers(nn)
 else:
     game_env = Checkers(neural_net=None)
+mcts_kwargs['GAME_ENV'] = game_env
+MCTS(**mcts_kwargs)
 initial_state = game_env.state
 game_env.print_board()
 if GUI: checker_gui = Checkers_GUI(game_env)
-
-mcts_kwargs = {
-    'GAME_ENV' : game_env,
-    'UCT_C' : UCT_C,
-    'CONSTRAINT' : CONSTRAINT,
-    'BUDGET' : BUDGET,
-    'MULTIPROC' : MULTIPROC,
-    'NEURAL_NET' : NEURAL_NET,
-    'VERBOSE' : VERBOSE,
-    'TRAINING' : TRAINING,
-    'DIRICHLET_ALPHA' : DIRICHLET_ALPHA,
-    'DIRICHLET_EPSILON' : DIRICHLET_EPSILON,
-    'TEMPERATURE_TAU' : TEMPERATURE_TAU,
-    'TEMPERATURE_DECAY' : TEMPERATURE_DECAY,
-    'TEMP_DECAY_DELAY' : TEMP_DECAY_DELAY
-    }
-MCTS(**mcts_kwargs)
 
 # Choose whether to play against the MCTS or to pit them against each other
 human_player1 = False # Set true to play against the MCTS algorithm as player 1
@@ -167,6 +159,6 @@ while not game_env.done:
 if GUI: 
     input('Press enter to continue...')
     checker_gui.close_gui()
-if MULTIPROC: 
+if mcts_kwargs['MULTIPROC']: 
     MCTS.pool.close()
     MCTS.pool.join()

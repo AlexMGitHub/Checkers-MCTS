@@ -376,6 +376,14 @@ I chose to use *AlphaGo Zero's* approach for its simplicity, but the evaluation 
 
 David Foster presents two figures [at the end of his blog post](https://medium.com/applied-data-science/how-to-build-your-own-alphazero-ai-using-python-and-keras-7f664945c188) that provide a great visualization of the learning progress made by his implementation of *AlphaZero*.  He selects a subset of the trained neural networks to play two games against every other neural network within the subset - one game as player 1, and one game as player 2.  The results of the matches are tabulated and each model's total score is determined by summing its respective row.  The resulting sums are plotted in the second figure and demonstrate that later iterations of the training have clearly produced networks that are able to reliably defeat their previous incarnations.  I wrote a final evaluation class to create the table and plot shown below: 
 
+````
+Final Eval table here
+````
+<p align="center">
+<img src="docs/images/FE.png" title="Checkers Final Evaluation" alt="Checkers Final Evaluation" width="640"/>
+</p>
+
+
 For these games I doubled the computational budget to 400 rollouts per turn.  The plot shows clear progress, but only relative progress.  Need an external benchmark. 
 
 
@@ -415,4 +423,4 @@ The wood texture of the Checkers board used in my Pygame GUI is from "5 wood tex
 
 
 ## Footnotes	
-\* Pygame 2.0.0 appears to have some bug that causes Ubuntu to believe that the Pygame GUI is not responding (although it is clearly running).  I recommend using Pygame 1.9.6 if you experience similar issues with newer versions of Pygame.
+\* Pygame 2.0+ appears to have some bug that causes Ubuntu to believe that the Pygame GUI is not responding (although it is clearly running) when using the GPU for inferences.  Forcing Keras to use the CPU may resolve the problem, but I recommend using Pygame 1.9.6 if you experience similar issues with newer versions of Pygame.  The GUI font sizes and positioning are optimized for Pygame 1.9.6.

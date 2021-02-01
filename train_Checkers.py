@@ -212,3 +212,4 @@ if EVALUATION:
 if FINAL_EVALUATION:
     fe = final_evaluation(fe_model_nums, tourney_kwargs, tourney_mcts_kwargs)
     fe.start_evaluation(num_cpus=4)
+    record_params('final', **{**tourney_kwargs, **tourney_mcts_kwargs})

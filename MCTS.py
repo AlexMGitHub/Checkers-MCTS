@@ -69,7 +69,6 @@ class MCTS:
         if node.unvisited_child_states:
             if cls.neural_net:
                 prob_vector, q_value = cls.game_env.predict(node.state)
-                node._confidence = q_value
                 for _ in range(len(node.unvisited_child_states)):
                     next_state = node.unvisited_child_states.pop()
                     child_node = MCTS_Node(next_state, parent=node)
@@ -331,10 +330,9 @@ class MCTS:
         any other children to visit.  
         """
         if not node.printed:
-            pwin = 100* ((node.w / node.n) + 1 ) / 2
             node_w_str = "{0}".format(str(round(node.w, 1) if node.w % 1 else int(node.w)))
             print('\t'*(node.depth-root_depth) + '|- ({}/{}) ({:.1f}%)'
-                  .format(node_w_str, node.n, pwin))
+                  .format(node_w_str, node.n, node.pwin))
             node.printed = True
         if node.children: # Choose last child in list
             if (node.children[-1].depth - root_depth) <= max_tree_depth:
@@ -373,7 +371,6 @@ class MCTS_Node:
         self._number_of_visits = 0
         self._total_reward = 0
         self._prior_prob = 0
-        self._confidence = 0
         self.unvisited_child_states = MCTS.get_legal_next_states(self.history)
         self.terminal = False if self.unvisited_child_states else True
         self.printed = False # Used by MCTS.print_tree()
@@ -404,7 +401,7 @@ class MCTS_Node:
     @property
     def pwin(self):
         """Property decorator used to return NN's confidence of winning."""
-        return np.round((self._confidence+1)/2*100,1)
+        return np.round((self.q+1)/2*100, 1)
     
     def selection(self):
         """The selection phase of MCTS.  Choose an action based on the MCTS

@@ -711,9 +711,9 @@ class Checkers_GUI:
                                self.board_offset+self.board_height+30))
             if self.game_env.neural_net:
                 if prev_player == 0:
-                    self.p1_pwin = root_node.pwin
+                    self.p1_pwin = best_child.pwin
                 else:
-                    self.p2_pwin = root_node.pwin
+                    self.p2_pwin = best_child.pwin
                 status_str = 'P1/P2\'s confidence in winning: {:4.1f}%'\
                     ' / {:4.1f}%'.format(self.p1_pwin, self.p2_pwin)
                 status_text = self.statusfont.render(status_str, True, self.WHITE)
