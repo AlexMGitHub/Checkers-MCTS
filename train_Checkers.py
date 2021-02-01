@@ -52,7 +52,7 @@ fe_model_nums = list(range(5))  # Iteration number of models to evaluate
 # %% Imports
 import os
 from training_pipeline import record_params
-if SELFPLAY or EVALUATION: # Force Keras to use CPU
+if SELFPLAY or EVALUATION or FINAL_EVALUATION: # Force Keras to use CPU
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
 if SELFPLAY: 
@@ -80,9 +80,9 @@ NEURAL_NET = False if TRAINING_ITERATION == 0 else True
 selfplay_kwargs = {
 'TRAINING_ITERATION' : TRAINING_ITERATION,
 'NN_FN' : NN_FN,
-'NUM_SELFPLAY_GAMES' : 80,
+'NUM_SELFPLAY_GAMES' : 50,
 'TERMINATE_CNT' : 160,      # Number of moves before terminating training game
-'NUM_CPUS' : 5              # Number of CPUs to use for parallel self-play
+'NUM_CPUS' : 2              # Number of CPUs to use for parallel self-play
 }
 
 mcts_kwargs = { # Parameters for MCTS used in generating data

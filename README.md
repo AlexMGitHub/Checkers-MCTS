@@ -1,6 +1,8 @@
 # Training a Neural Network to play Checkers with Monte Carlo Tree Search
 
-![Agent playing Checkers](docs/images/Minesweeper_Agent_Playing.gif "Checkers self-play!")
+<p align="center">
+<img src="docs/images/Checkers_Agent_Playing.gif" title="Checkers self-play!" alt="Checkers self-play!" width="600"/>
+</p>
 
 ## Overview
 I trained a neural network to play Checkers through self-play using Monte Carlo Tree Search.  The agent achieves **TBD** after **TBD** training iterations.  This required about **TBD** days of training on a laptop with an Intel Core i7-6820HQ CPU @ 2.70GHz and an NVIDIA Quadro M2002M GPU (CUDA Compute Capability 5.0).
