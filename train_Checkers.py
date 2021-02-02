@@ -37,9 +37,9 @@
 # %% Set training pipeline parameters
 TRAINING_ITERATION = 4 # Current training iteration
 # NN_FN required if TRAINING_ITERATION > 0 and SELFPLAY = TRUE
-NN_FN = 'data/model/Checkers_Model4_30-Jan-2021(18:34:38).h5'
+NN_FN = 'data/model/Checkers_Model5_01-Feb-2021(14:31:23).h5'
 # NEW_NN_FN required if TRAINING = FALSE and EVALUATION = TRUE
-NEW_NN_FN = 'data/model/Checkers_Model4_30-Jan-2021(18:34:38).h5'
+NEW_NN_FN = 'data/model/Checkers_Model5_01-Feb-2021(14:31:23).h5'
 SELFPLAY = True            # If True self-play phase will be executed
 TRAINING = False            # If True training phase will be executed
 EVALUATION = False          # If True evaluation phase will be executed
