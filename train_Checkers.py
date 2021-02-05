@@ -35,11 +35,11 @@
 """
 
 # %% Set training pipeline parameters
-TRAINING_ITERATION = 4 # Current training iteration
+TRAINING_ITERATION = 6 # Current training iteration
 # NN_FN required if TRAINING_ITERATION > 0 and SELFPLAY = TRUE
-NN_FN = 'data/model/Checkers_Model5_01-Feb-2021(14:31:23).h5'
+NN_FN = 'data/model/Checkers_Model6_05-Feb-2021(16:29:12).h5'
 # NEW_NN_FN required if TRAINING = FALSE and EVALUATION = TRUE
-NEW_NN_FN = 'data/model/Checkers_Model5_01-Feb-2021(14:31:23).h5'
+NEW_NN_FN = 'data/model/Checkers_Model6_05-Feb-2021(16:29:12).h5'
 SELFPLAY = True            # If True self-play phase will be executed
 TRAINING = False            # If True training phase will be executed
 EVALUATION = False          # If True evaluation phase will be executed
@@ -120,7 +120,7 @@ training_kwargs = {     # Parameters used to train neural network
 'NUM_KERNELS' : 128,    # Number of Conv2D kernels in "body" of NN
 'VAL_SPLIT' : 0.20,     # Fraction of training data to use for validation
 'MIN_DELTA' : 0.01, # Min amount val loss must decrease to prevent stopping
-'PATIENCE' : 10,    # Number of epochs of stagnation before stopping training
+'PATIENCE' : 20,    # Number of epochs of stagnation before stopping training
 'POLICY_LOSS_WEIGHT' : 1.0, # Weighting given to policy head loss
 'VALUE_LOSS_WEIGHT' : 1.0,  # Weighting given to value head loss
 'SLIDING_WINDOW' : 1 # Number self-play iterations to include in training data
