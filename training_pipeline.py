@@ -404,7 +404,6 @@ class generate_Checkers_data():
                         else:
                             game_env.outcome = 'draw'
             if not terminated_game: # Include terminal state
-                #prob_vector = np.zeros((256,))
                 prob_planes = np.zeros((8,8,8))
                 node_q = 0 if game_env.outcome == 'draw' else -1
                 experiences.append([game_env.state, prob_planes, node_q])
