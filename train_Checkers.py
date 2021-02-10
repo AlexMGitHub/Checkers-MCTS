@@ -35,11 +35,11 @@
 """
 
 # %% Set training pipeline parameters
-TRAINING_ITERATION = 7 # Current training iteration
+TRAINING_ITERATION = 8 # Current training iteration
 # NN_FN required if TRAINING_ITERATION > 0 and SELFPLAY = TRUE
-NN_FN = 'data/model/Checkers_Model7_06-Feb-2021(17:34:32).h5'
+NN_FN = 'data/model/Checkers_Model8_09-Feb-2021(18:38:37).h5'
 # NEW_NN_FN required if TRAINING = FALSE and EVALUATION = TRUE
-NEW_NN_FN = 'data/model/Checkers_Model7_06-Feb-2021(17:34:32).h5'
+NEW_NN_FN = 'data/model/Checkers_Model8_09-Feb-2021(18:38:37).h5'
 SELFPLAY = True            # If True self-play phase will be executed
 TRAINING = False            # If True training phase will be executed
 EVALUATION = False          # If True evaluation phase will be executed
@@ -80,9 +80,9 @@ NEURAL_NET = False if TRAINING_ITERATION == 0 else True
 selfplay_kwargs = {
 'TRAINING_ITERATION' : TRAINING_ITERATION,
 'NN_FN' : NN_FN,
-'NUM_SELFPLAY_GAMES' : 50,
+'NUM_SELFPLAY_GAMES' : 100,
 'TERMINATE_CNT' : 200,      # Number of moves before terminating training game
-'NUM_CPUS' : 2              # Number of CPUs to use for parallel self-play
+'NUM_CPUS' : 1              # Number of CPUs to use for parallel self-play
 }
 
 mcts_kwargs = { # Parameters for MCTS used in generating data
