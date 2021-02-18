@@ -501,6 +501,8 @@ class Checkers_GUI:
         self.move_sq = pygame.image.load('img/move_sq.png').convert_alpha()
         # Draw display
         self._set_board(game_env.state)
+        # Define if a human player is playing
+        self.human_player = False
         
     def _set_board(self, state):
         """Blit Checkers pieces on GUI board in their starting positions."""
@@ -594,7 +596,7 @@ class Checkers_GUI:
         prev_state = self.game_env.history[-2]
         state = self.game_env.state
         move_count = self.game_env.move_count
-        if move_count == 1:
+        if move_count == 1 and not self.human_player:
             self._blit_probs(root_node)
         # Blit selection animation
         old_xy, new_xy = self._states_to_piece_positions(prev_state, state)
@@ -610,7 +612,7 @@ class Checkers_GUI:
         time.sleep(self.move_delay)
         # Blit next player's possible moves, prior probs, update status text
         self._blit_possible_moves(state)
-        self._blit_probs(best_child)
+        if not self.human_player: self._blit_probs(best_child)
         self._blit_status(root_node, best_child)
         self.update_screen()
        
@@ -690,8 +692,8 @@ class Checkers_GUI:
         confidence in winning.  If game is over, display outcome.
         """
         move_count = self.game_env.move_count+1
-        state = best_child.state
-        prev_state = root_node.state
+        prev_state = self.game_env.history[-2]
+        state = self.game_env.state
         player = int(state[4,0,0])
         prev_player = int(prev_state[4,0,0])
         player1_man = 'red'
@@ -709,7 +711,7 @@ class Checkers_GUI:
             status_text = self.statusfont.render(status_str, True, self.WHITE)
             self.gameDisplay.blit(status_text, (self.board_offset,
                                self.board_offset+self.board_height+30))
-            if self.game_env.neural_net:
+            if self.game_env.neural_net and not self.human_player:
                 if prev_player == 0:
                     self.p1_pwin = best_child.pwin
                 else:

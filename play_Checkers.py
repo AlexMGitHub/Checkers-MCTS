@@ -4,8 +4,8 @@
 ###############################################################################
 # play_Checkers.py
 #
-# Revision:     1.00
-# Date:         11/15/2020
+# Revision:     1.10
+# Date:         2/17/2021
 # Author:       Alex
 #
 # Purpose:      Plays a demonstration game of Checkers using the Monte Carlo
@@ -18,6 +18,7 @@
 # Outputs:
 # 1. Text representations of the Tic-Tac-Toe game board and the MCTS tree.
 # 2. An optional print out of the MCTS tree after each player's move.
+# 3. An option Pygame GUI representation of the Checkers board.
 #
 # Notes:
 # 1. Run this module to see a demonstration game of Checkers played using 
@@ -52,6 +53,8 @@ def get_human_input():
         move_idx = int(input('Enter option number: ')) - 1
         if move_idx in range(len(moves_list)):
             game_env.step(legal_next_states[move_idx])
+            game_env.print_board()
+            if GUI: checker_gui.render()    
             return legal_next_states[move_idx]
         else:
             print('Invalid selection!  Try again!')
@@ -85,10 +88,10 @@ def states_to_piece_positions(next_states):
 # %% Initialize game environment and MCTS class
 # Set MCTS parameters
 mcts_kwargs = {     # Parameters for MCTS used in tournament
-'NN_FN' : 'data/model/Checkers_Model4_30-Jan-2021(18:34:38).h5',
+'NN_FN' : 'data/model/Checkers_Model10_12-Feb-2021(14:50:36).h5',
 'UCT_C' : 4,                # Constant C used to calculate UCT value
 'CONSTRAINT' : 'rollout',   # Constraint can be 'rollout' or 'time'
-'BUDGET' : 200,             # Maximum number of rollouts or time in seconds
+'BUDGET' : 400,             # Maximum number of rollouts or time in seconds
 'MULTIPROC' : False,        # Enable multiprocessing
 'NEURAL_NET' : True,        # If False uses random rollouts instead of NN
 'VERBOSE' : False,          # MCTS prints search start/stop messages if True
@@ -120,6 +123,7 @@ if human_player1 and human_player2: human_player2 = False
 human_player_idx = 0 if human_player1 else 1
 if not human_player1:
     root_node1 = MCTS_Node(initial_state, parent=None)    
+if GUI and (human_player1 or human_player2): checker_gui.human_player = True
 
 print_trees = True # Choose whether to print root node's tree after every move
 tree_depth = 1 # Number of layers of tree to print (warning: expands quickly!)

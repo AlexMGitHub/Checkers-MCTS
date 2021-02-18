@@ -620,7 +620,7 @@ class final_evaluation():
         fns = os.listdir('data/model')
         for iter_num in model_iter_list:
             for fn in fns:
-                model_fn = 'Model' + str(iter_num)
+                model_fn = 'Model' + str(iter_num) + '_'
                 if model_fn in fn and '.h5' in fn:
                     self.model_fn_list.append(fn)
                     break
