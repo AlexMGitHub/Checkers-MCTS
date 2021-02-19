@@ -5,7 +5,7 @@
 </p>
 
 ## Overview
-I trained a neural network to play Checkers through self-play using Monte Carlo Tree Search.  The agent achieves **TBD** after **TBD** training iterations.  This required about **TBD** days of training on a laptop with an Intel Core i7-6820HQ CPU @ 2.70GHz and an NVIDIA Quadro M2002M GPU (CUDA Compute Capability 5.0).
+I trained a neural network to play Checkers through self-play using Monte Carlo Tree Search.  The agent is able to defeat several online Checkers algorithms after 10 training iterations.  This required about 10 days of training on a laptop with an Intel Core i7-6820HQ CPU @ 2.70GHz and an NVIDIA Quadro M2002M GPU (CUDA Compute Capability 5.0).
 
 I wrote the code in Python 3.7 and used Keras 2.4.3 (GPU-enabled with Tensorflow backend), Pygame 1.9.6[\*](#footnotes), and Matplotlib 3.3.2.  A **requirements.txt** file is included for convenience.  
 
@@ -376,47 +376,93 @@ Tournament games still use the Dirichlet noise parameters discussed in a previou
   
 ## Discussion of Results
 
+The plot of the tournament results (shown below) demonstrates that each new iteration of the trained neural network usually won more games against its predecessor than it lost.  The only exception is iteration 7, which lost five games to its predecessor.  The first iteration model won 10-0 against its predecessor (iteration 0) which is expected as it was an untrained neural network.  A total of 10 iterations of the neural network were trained (11 models total including the untrained network).
+
+<p align="center">
+<img src="docs/images/tournament_results.png" title="Checkers Final Evaluation" alt="Checkers Final Evaluation" width="640"/>
+</p>
+
 David Foster presents two figures [at the end of his blog post](https://medium.com/applied-data-science/how-to-build-your-own-alphazero-ai-using-python-and-keras-7f664945c188) that provide a great visualization of the learning progress made by his implementation of *AlphaZero*.  He selects a subset of the trained neural networks to play two games against every other neural network within the subset - one game as player 1, and one game as player 2.  The results of the matches are tabulated and each model's total score is determined by summing its respective row.  The resulting sums are plotted in the second figure and demonstrate that later iterations of the training have clearly produced networks that are able to reliably defeat their previous incarnations.  I wrote a final evaluation class to create the table and plot shown below: 
 
-````
-Final Eval table here
-````
+
+```
+╒════╤═════╤═════╤═════╤═════╤═════╤═════╤═════╤═════╤═════╤═════╤══════╤═════════╕
+│    │   0 │   1 │   2 │   3 │   4 │   5 │   6 │   7 │   8 │   9 │   10 │   Total │
+╞════╪═════╪═════╪═════╪═════╪═════╪═════╪═════╪═════╪═════╪═════╪══════╪═════════╡
+│  0 │   0 │  -2 │  -2 │  -2 │  -1 │  -2 │  -2 │  -2 │  -2 │  -2 │   -2 │     -19 │
+├────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┼─────────┤
+│  1 │   2 │   0 │   1 │   1 │   0 │   1 │  -1 │   1 │   1 │   0 │   -2 │       4 │
+├────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┼─────────┤
+│  2 │   2 │  -1 │   0 │  -2 │  -2 │   1 │   2 │   0 │  -1 │   0 │    1 │       0 │
+├────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┼─────────┤
+│  3 │   2 │  -1 │   2 │   0 │   0 │   0 │   0 │   0 │  -1 │   1 │    0 │       3 │
+├────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┼─────────┤
+│  4 │   1 │   0 │   2 │   0 │   0 │  -1 │  -2 │   0 │   0 │   1 │    1 │       2 │
+├────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┼─────────┤
+│  5 │   2 │  -1 │  -1 │   0 │   1 │   0 │   1 │   1 │   1 │   1 │   -1 │       4 │
+├────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┼─────────┤
+│  6 │   2 │   1 │  -2 │   0 │   2 │  -1 │   0 │  -1 │   0 │   1 │    1 │       3 │
+├────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┼─────────┤
+│  7 │   2 │  -1 │   0 │   0 │   0 │  -1 │   1 │   0 │   1 │   1 │   -1 │       2 │
+├────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┼─────────┤
+│  8 │   2 │  -1 │   1 │   1 │   0 │  -1 │   0 │  -1 │   0 │   0 │    1 │       2 │
+├────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┼─────────┤
+│  9 │   2 │   0 │   0 │  -1 │  -1 │  -1 │  -1 │  -1 │   0 │   0 │   -2 │      -5 │
+├────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼─────┼──────┼─────────┤
+│ 10 │   2 │   2 │  -1 │   0 │  -1 │   1 │  -1 │   1 │  -1 │   2 │    0 │       4 │
+╘════╧═════╧═════╧═════╧═════╧═════╧═════╧═════╧═════╧═════╧═════╧══════╧═════════╛
+```
+
 <p align="center">
-<img src="docs/images/FE.png" title="Checkers Final Evaluation" alt="Checkers Final Evaluation" width="640"/>
+<img src="data/final_eval/Checkers_Final_Evaluation_16-Feb-2021(00:23:03).png" title="Checkers Final Evaluation" alt="Checkers Final Evaluation" width="640"/>
 </p>
 
 
-For these games I doubled the computational budget to 400 rollouts per turn.  The plot shows clear progress, but only relative progress.  Need an external benchmark. 
+For these final evaluation games I doubled the computational budget to 400 rollouts per turn, and used all 11 neural network models.  Foster trained 49 iterations of his network, but only used every third iteration in his final evaluation benchmark.  Not surprisingly, his plot shows significant progress, whereas my plot remains fairly flat after the first iteration of the model.  However, on closer inspection, Foster's plot shows the same pattern as my own.  The first 13 model iterations have about the same performance, and it's not until the 16th iteration that significant progress is seen.  
+
+In any event, the previous figures only demonstrate relative progress.  But it's unclear how much absolute progress has been made without an external benchmark for the Checkers-MCTS algorithm to play against.  DeepMind used its own internal Elo rating system to gauge the strength of the algorithm as training progressed, but the real test was playing against professional Go players such as Fan Hui and Lee Sedol.  I chose to pit Checkers-MCTS against a few Checkers algorithms that I found on online games websites. 
+
+### External Benchmarks
+
+I used the `play_Checkers.py` script to insert myself as a middleman between the two algorithms.  I entered the moves made by each player into their opponent's user interface; either the `play_Checkers.py` console or the website's graphical interface.  I chose to have Checkers-MCTS play as player 2 for each game, as the website's board perspective often matched the Pygame GUI better when playing as player 2.  The computational budget for these games was 400 rollouts.
+
+#### Cardgames.io
+
+<p align="center">
+<img src="docs/images/cardgames_draw.png" title="Cardgames.io" alt="Cardgames.io" width="480"/>
+</p>
+
+The first test for Checkers-MCTS was [cardgames.io](https://cardgames.io/checkers/).  The initial play by Checkers-MCTS seemed strong, but not long into the game Checkers-MCTS appeared to make a critical mistake.  It moved a man forward into a position that resulted in the opponent getting a double-jump (2 unanswered lost pieces).  But in the next move Checkers-MCTS was able to respond with a triple-jump that moved the man to King's row (captured 3 men and gained a king).  I was impressed by this play as I did not see the possibility myself, and it seemed to demonstrate that the Checkers-MCTS algorithm is capable of sophisticated sacrifice plays that put it ahead in the long run.
+
+Checkers-MCTS quickly established a strong lead: it had 6 men and 2 kings versus the opponent's 3 men and 1 king.  But then, inexplicably, Checkers-MCTS made an unforced error that allowed the opponent a double-jump a man and king.  Although Checkers-MCTS still had more pieces, it was unable to finish the game.  It began to shift its kings back and forth until the website's draw condition was triggered.  This behavior of strong early play followed by dithering during the end game would appear again in the next trials.
+
+#### Online-Checkers.com
+
+<p align="center">
+<img src="docs/images/online_checkers_combined.png" title="Online-Checkers.com" alt="Online-Checkers.com" width="480"/>
+</p>
 
 
-Show results of last iteration of NN vs all previous iterations?
-What is the stopping point?  Play versus myself?  Versus another Checkers algorithm?  Is Chinook too good?
-https://cardgames.io/checkers/
+The next test was [online-checkers.com](https://www.online-checkers.com/).  This website's Checkers game offers multiple difficulty levels: Easy, Medium, and Hard.  I pit Checkers-MCTS against each difficulty level, starting with Easy.  True to the description, Checkers-MCTS defeated the Easy difficulty in 56 moves.  It took nearly 200 moves to defeat Medium even though Checkers-MCTS took a clear lead early on.  It once again shuffled its king back and forth for dozens of turns instead of decisively finishing the game.  Surprisingly, Checkers-MCTS did decisively beat the Hard difficulty in 64 moves and only lost 5 pieces in the process.  It sacrificed a man to capture the opponent's only king, at which point the game was effectively over.
 
-Checkers-MCTS player 2
-Moved a man forward and resulted in double-jump (2 lost pieces), but then was able to respond with a triple-jump that moved the man to King's row (3 men and made a king).
-Up 6 men and 2 kings versus 3 men and 1 king, then inexplicably made an unforced error that allowed the opponent a double-jump a man and king.  Still was up 2 pieces (1 man and 1 king), but unable to finish game.  Shifted back and forth until draw condition hit by the online opponent.
+#### 24/7 Checkers
 
-https://www.online-checkers.com/
-won in 56 moves on easy
-Went nearly 200 moves on medium even though took a clear lead early on.  Shuffled king back and forth instead of finishing it.
-Surprisingly, decisively beat hard difficulty in 64 moves and only lost 5 pieces in the process.  Sacrificed a man to capture opponent's only king, at which point the game was over.
+<p align="center">
+<img src="docs/images/247checkers_combined.png" title="247Checkers.com" alt="247Checkers.com" width="240"/>
+</p>
 
+The final test was [247Checkers.com](https://www.247checkers.com/), which also has difficulty modes.  Checkers-MCTS won handily on Easy difficulty; the Easy opponent made some unforced errors that almost seemed deliberate in order to try to lose.  Medium difficulty didn't play much better, and Checkers-MCTS won in 44 moves.  
 
-https://www.247checkers.com/
-Has difficulty modes
-Checkers-MCTS player 2
-won handily on easy difficulty, easy opponent made some unforced errors that almost seemed deliberate to try to lose.
-Medium didn't do much better, Checkers-MCTS won in 44 moves.
+On hard difficulty I discovered an interesting bug.  Checkers-MCTS had two possible jumps that it could make: a single jump with one piece, or a double jump with another.  It chose the piece that could make a double-jump, but only performed the first jump.  It then switched to the other piece and performed its jump.  This is absolutely against the rules!  But because I did not forsee this scenario, the `Checkers` environment does not force the player to finish the sequence of jumps with the same piece it started with.  I resigned the game due to the illegal move and started a new game, hoping that the scenario would not arise again.  Luckily it did not, but Checkers-MCTS lost in 53 moves to the hard difficulty.  
 
-On hard difficulty found interesting bug.  Checkers-MCTS had two possible jumps that it could make: a single jump with one piece, or a double jump with another.  It chose the piece that could make a double-jump, but only performed the first jump.  It then switched to the other piece and performed its jump.  This is almost certainly against the rules, but because I did not forsee this scenario the rules do not force the player to finish the sequence of jumps with the same piece it started with.  Tried again and hoped the scenario would not arise again.  Luckily it did not, but lost in 53 moves to the hard difficulty.  
+### Final Thoughts on Checkers-MCTS Performance
 
-
-I used `play_Checkers.py` to act as a middleman between my Checkers-MCTS algorithm and the online Checkers programs.  I entered the moves made by each player into their opponent's user interface; either the `play_Checkers.py` console or the website's graphical interface.
+The *AlphaZero* algorithm has produced an agent capable of playing Checkers at an intermediate level after only 10 training iterations.  Although occasionally capable of making farsighted plays, the agent still struggles when the piece counts dwindle and there are several squares of separation between opposing pieces.  As both players are attempting to reach each other's King's row, many self-play games end with both players' kings sitting on opposite sides of the board.  I suspect that the larger moveset of kings increases the branching factor of the tree search, and the open space in the middle of the board requires looking further into the future to find the optimal move.  This means that the agent will either need more rollouts to explore moves that are further in the future, or better training of its policy head to narrow down which potential moves to focus exploration on.  In either case, more computation time is required to improve results. 
 
 
 ### Future Work
-Fix multi-jump bug.  More iterations of training.  Parallelize MCTS.  Have human vs. neural network show NN's confidence level.  Deeper neural network.
+
+The most pressing future work is to fix the bug so that Checkers-MCTS cannot switch pieces in the middle of a sequence of jumps.  Until this bug is fixed, further training is useless as the algorithm will learn to exploit illegal moves.  Once fixed, the next most pressing issue is computation time.  The key to improving the algorithm's performance is massively increasing the number of self-play games it is trained on.  It currently requires a prohibitive amount of time to complete a single self-play game.  There are two possible approaches that could be explored to reduce computation time: refactoring the `Checkers.py` environment so that it is more efficient, or parallelizing the Monte Carlo Tree Search.  Once this is done, the depth of the neural network architecture could be revisited.  It may be that the current architecture is too "shallow" and its relative benchmarks will plateau before the agent has achieved optimal performance.  A final, minor effort would be to rewrite the `Checkers_GUI` class to show the neural network's confidence level when playing against a human.
 
 ## Acknowledgments
 
